@@ -1,0 +1,6 @@
+name = "tmdb-proxy"
+main = "worker.js"
+compatibility_date = "2025-01-01"
+
+# O TMDB_TOKEN é secret — nunca declare aqui.
+# Configure com: npx wrangler secret put TMDB_TOKEN
