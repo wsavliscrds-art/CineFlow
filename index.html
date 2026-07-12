@@ -59,11 +59,20 @@
     --card-h: 186px; /* 2:3 */
     --gap: 12px;
 
+    /* padding lateral do conteúdo — cresce com a tela */
+    --px: 16px;
+
     color-scheme: dark;
   }
 
   @media (min-width: 720px) {
-    :root { --card-w: 152px; --card-h: 228px; --gap: 14px; }
+    :root { --card-w: 152px; --card-h: 228px; --gap: 14px; --px: 28px; }
+  }
+  @media (min-width: 1200px) {
+    :root { --card-w: 168px; --card-h: 252px; --gap: 16px; --px: 48px; }
+  }
+  @media (min-width: 1700px) {
+    :root { --px: 72px; }
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -96,6 +105,10 @@
      LAYOUT / CHROME
      ════════════════════════════════════════════════════════ */
   #app { padding-bottom: calc(72px + env(safe-area-inset-bottom)); min-height: 100vh; }
+  @media (min-width: 1200px) {
+    #app { max-width: 1680px; margin: 0 auto; }
+    .topbar { padding: env(safe-area-inset-top) var(--px) 0; }
+  }
 
   .topbar {
     position: fixed; inset: 0 0 auto 0; z-index: 40;
@@ -121,6 +134,16 @@
     background: rgba(20, 23, 28, 0.85);
     backdrop-filter: blur(18px) saturate(140%);
     border-top: 1px solid var(--border);
+  }
+  /* desktop: a barra vira uma pílula flutuante centralizada */
+  @media (min-width: 900px) {
+    .tabbar {
+      inset: auto auto 20px 50%; transform: translateX(-50%);
+      min-width: 460px; padding: 4px var(--md); gap: var(--sm);
+      border: 1px solid var(--border-strong); border-radius: var(--r-pill);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+    }
+    .tab { border-radius: var(--r-pill); padding: 8px 18px; }
   }
   .tab {
     flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px;
@@ -158,7 +181,7 @@
   }
   .hero-body {
     position: absolute; z-index: 2; left: 0; right: 0; bottom: var(--xl);
-    padding: 0 var(--lg); display: flex; flex-direction: column; gap: var(--md);
+    padding: 0 var(--px); display: flex; flex-direction: column; gap: var(--md);
   }
   .hero-title { max-width: 640px; text-wrap: balance; }
   .hero-meta { display: flex; align-items: center; gap: var(--sm); flex-wrap: wrap; }
@@ -190,14 +213,14 @@
   .rail { margin-bottom: var(--xl); }
   .rail-head {
     display: flex; align-items: center; justify-content: space-between;
-    padding: 0 var(--lg); margin-bottom: var(--md);
+    padding: 0 var(--px); margin-bottom: var(--md);
   }
   .rail-more { color: var(--text-tertiary); font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 2px; }
   .rail-more:hover { color: var(--text-primary); }
 
   .rail-track {
     display: flex; gap: var(--gap);
-    padding: 0 var(--lg) 4px;
+    padding: 0 var(--px) 4px;
     overflow-x: auto; overflow-y: hidden;
     scroll-snap-type: x mandatory;
     scrollbar-width: none;
@@ -205,6 +228,60 @@
     overscroll-behavior-x: contain;
   }
   .rail-track::-webkit-scrollbar { display: none; }
+
+  /* ── setas das esteiras (desktop: mouse/trackpad) ── */
+  .rail-body { position: relative; }
+  .rail-arrow {
+    position: absolute; z-index: 6;
+    top: calc(var(--card-h) / 2 - 22px);
+    width: 44px; height: 44px; border-radius: 50%;
+    display: none; align-items: center; justify-content: center;
+    background: rgba(11, 13, 16, 0.82); backdrop-filter: blur(8px);
+    border: 1px solid var(--border-strong); color: var(--text-primary);
+    transition: opacity var(--d-fast) var(--ease), transform var(--d-fast) var(--ease), background var(--d-fast) var(--ease);
+    opacity: 0;
+  }
+  .rail-arrow.prev { left: calc(var(--px) - 22px); }
+  .rail-arrow.next { right: calc(var(--px) - 22px); }
+  .rail-arrow:hover { background: var(--surface3); transform: scale(1.08); }
+  .rail-arrow[data-off='1'] { visibility: hidden; }
+  @media (hover: hover) and (pointer: fine) {
+    .rail-arrow { display: flex; }
+    .rail-body:hover .rail-arrow, .rail-arrow:focus-visible { opacity: 1; }
+  }
+
+  /* ── popup de sugestões (Top 10 semanal / similares) ── */
+  .pop-backdrop {
+    position: fixed; inset: 0; z-index: 70;
+    background: var(--overlay); backdrop-filter: blur(6px);
+    opacity: 0; pointer-events: none; transition: opacity var(--d-base) var(--ease);
+  }
+  .pop-backdrop.open { opacity: 1; pointer-events: auto; }
+  .pop {
+    position: fixed; z-index: 71; left: 50%; top: 50%;
+    transform: translate(-50%, -50%) scale(0.96); opacity: 0; pointer-events: none;
+    width: min(920px, calc(100vw - 2 * var(--lg)));
+    max-height: min(86vh, 720px); overflow-y: auto; overscroll-behavior: contain;
+    background: var(--surface1); border: 1px solid var(--border-strong);
+    border-radius: var(--r-xl); padding: var(--xl) 0 var(--lg);
+    transition: opacity var(--d-base) var(--ease), transform var(--d-base) var(--ease-out);
+  }
+  .pop.open { opacity: 1; transform: translate(-50%, -50%) scale(1); pointer-events: auto; }
+  .pop-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--md); padding: 0 var(--xl); margin-bottom: var(--lg); }
+  .pop .rail-track { padding: 0 var(--xl) 4px; }
+  .pop-close {
+    flex: 0 0 auto; width: 36px; height: 36px; border-radius: 50%;
+    background: var(--surface2); border: 1px solid var(--border);
+    display: grid; place-items: center;
+  }
+  @media (max-width: 719px) {
+    .pop { left: 0; right: 0; top: auto; bottom: 0; width: 100%;
+      transform: translateY(24px); border-radius: var(--r-xl) var(--r-xl) 0 0;
+      max-height: 82vh; padding-bottom: calc(var(--lg) + env(safe-area-inset-bottom)); }
+    .pop.open { transform: translateY(0); }
+    .pop-head { padding: 0 var(--lg); }
+    .pop .rail-track { padding: 0 var(--lg) 4px; }
+  }
 
   /* ── card ── */
   .card {
@@ -278,7 +355,7 @@
   .state p { max-width: 300px; }
 
   .rail-error {
-    margin: 0 var(--lg); padding: var(--lg);
+    margin: 0 var(--px); padding: var(--lg);
     background: var(--surface1); border: 1px solid var(--border);
     border-radius: var(--r-md);
     display: flex; align-items: center; justify-content: space-between; gap: var(--md);
@@ -298,23 +375,24 @@
   .chip:active { transform: scale(0.95); }
   .chip.on { background: var(--accent-soft); border-color: var(--accent); color: var(--text-primary); }
 
-  .scroller { overflow-x: auto; scrollbar-width: none; padding: 0 var(--lg); }
+  .scroller { overflow-x: auto; scrollbar-width: none; padding: 0 var(--px); }
   .scroller::-webkit-scrollbar { display: none; }
   .scroller .chips { flex-wrap: nowrap; }
 
-  .field { padding: 0 var(--lg); margin-bottom: var(--xl); }
+  .field { padding: 0 var(--px); margin-bottom: var(--xl); }
   .field > .overline { color: var(--text-tertiary); margin-bottom: var(--md); display: block; }
 
   .grid {
     display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
-    gap: var(--lg) var(--md); padding: 0 var(--lg);
+    gap: var(--lg) var(--md); padding: 0 var(--px);
   }
   @media (min-width: 720px) { .grid { grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); } }
+  @media (min-width: 1200px) { .grid { grid-template-columns: repeat(auto-fill, minmax(164px, 1fr)); gap: var(--xl) var(--lg); } }
   .grid .card { width: 100%; }
   .grid .poster { height: auto; aspect-ratio: 2/3; }
 
   .notice {
-    margin: 0 var(--lg) var(--lg); padding: var(--md) var(--lg);
+    margin: 0 var(--px) var(--lg); padding: var(--md) var(--lg);
     border-radius: var(--r-md);
     background: var(--accent-soft); border: 1px solid rgba(229,9,20,0.28);
     font-size: 13px; line-height: 18px; color: var(--text-secondary);
@@ -329,7 +407,7 @@
   .range-val { font-size: 13px; font-weight: 700; min-width: 42px; text-align: center; }
 
   .searchbar {
-    margin: 0 var(--lg) var(--lg);
+    margin: 0 var(--px) var(--lg);
     display: flex; align-items: center; gap: var(--sm);
     height: 46px; padding: 0 var(--md);
     background: var(--surface2); border: 1px solid var(--border); border-radius: var(--r-md);
@@ -594,6 +672,10 @@
 
 <div class="sheet-backdrop" id="backdrop"></div>
 <aside class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="Detalhes do título"></aside>
+
+<div class="pop-backdrop" id="popBackdrop"></div>
+<div class="pop" id="pop" role="dialog" aria-modal="true" aria-label="Sugestões"></div>
+
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -1051,6 +1133,28 @@ const railObserver = new IntersectionObserver(entries => {
   }
 }, { rootMargin: '400px 0px' });
 
+/* Setas ← → para navegar a esteira no desktop (no toque, o dedo é a seta). */
+function railBody(track) {
+  const body = el('div', 'rail-body');
+  const mk = (dir, label, path) => {
+    const b = el('button', `rail-arrow ${dir}`);
+    b.setAttribute('aria-label', label);
+    b.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="${path}"/></svg>`;
+    b.onclick = () => track.scrollBy({ left: (dir === 'prev' ? -1 : 1) * track.clientWidth * 0.85, behavior: 'smooth' });
+    return b;
+  };
+  const prev = mk('prev', 'Ver anteriores', 'M15 18l-6-6 6-6');
+  const next = mk('next', 'Ver próximos', 'M9 18l6-6-6-6');
+  const sync = () => {
+    prev.dataset.off = track.scrollLeft <= 8 ? '1' : '0';
+    next.dataset.off = track.scrollLeft + track.clientWidth >= track.scrollWidth - 8 ? '1' : '0';
+  };
+  track.addEventListener('scroll', sync, { passive: true });
+  new ResizeObserver(sync).observe(track);
+  body.append(prev, track, next);
+  return body;
+}
+
 function railEl(cfg) {
   const root = el('section', 'rail');
   const head = el('div', 'rail-head');
@@ -1059,7 +1163,7 @@ function railEl(cfg) {
 
   const track = el('div', 'rail-track');
   for (let i = 0; i < 5; i++) track.appendChild(skelCard());
-  root.appendChild(track);
+  root.appendChild(railBody(track));
 
   const state = { page: 0, totalPages: 1, items: [], loading: false, done: false };
 
@@ -1195,7 +1299,7 @@ async function renderExplore() {
   if (v.dataset.built) { paintGrid(); return; }
   v.dataset.built = '1';
   v.innerHTML = `
-    <div style="padding:0 var(--lg) var(--lg)">
+    <div style="padding:0 var(--px) var(--lg)">
       <h1 class="h1">Explorar</h1>
       <p class="caption t-sec" style="margin-top:4px">Combine gênero, ano e ordenação.</p>
     </div>
@@ -1206,12 +1310,12 @@ async function renderExplore() {
     </div>
 
     <div class="field" style="padding:0">
-      <span class="overline" style="padding:0 var(--lg)">Ordenar por</span>
+      <span class="overline" style="padding:0 var(--px)">Ordenar por</span>
       <div class="scroller"><div class="chips" id="fSort"></div></div>
     </div>
 
     <div class="field" style="padding:0">
-      <span class="overline" style="padding:0 var(--lg)">Gêneros <span id="gCount" class="t-ter"></span></span>
+      <span class="overline" style="padding:0 var(--px)">Gêneros <span id="gCount" class="t-ter"></span></span>
       <div class="scroller"><div class="chips" id="fGenres" style="flex-wrap:wrap;max-width:none"></div></div>
     </div>
 
@@ -1235,7 +1339,7 @@ async function renderExplore() {
       </div>
     </div>
 
-    <div style="padding:0 var(--lg) var(--lg);display:flex;align-items:center;justify-content:space-between;gap:var(--md)">
+    <div style="padding:0 var(--px) var(--lg);display:flex;align-items:center;justify-content:space-between;gap:var(--md)">
       <span class="caption t-sec" id="resCount">—</span>
       <button class="chip" id="clearF">Limpar filtros</button>
     </div>
@@ -1423,7 +1527,7 @@ function renderSearch() {
   if (v.dataset.built) return;
   v.dataset.built = '1';
   v.innerHTML = `
-    <div style="padding:0 var(--lg) var(--lg)"><h1 class="h1">Buscar</h1></div>
+    <div style="padding:0 var(--px) var(--lg)"><h1 class="h1">Buscar</h1></div>
     <div class="searchbar">
       ${ICON.search.replace('<svg', '<svg width="18" height="18" style="color:var(--text-tertiary);flex:0 0 auto"')}
       <input id="q" placeholder="Filme, série…" autocomplete="off" enterkeyhint="search" />
@@ -1431,7 +1535,7 @@ function renderSearch() {
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-10"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
       </button>
     </div>
-    <div id="recentWrap" style="display:none;padding:0 var(--lg) var(--md)">
+    <div id="recentWrap" style="display:none;padding:0 var(--px) var(--md)">
       <span class="overline t-ter">Recentes</span>
       <div id="recentChips" class="meta-row" style="margin-top:var(--sm)"></div>
     </div>
@@ -1519,7 +1623,7 @@ function renderSearch() {
 /* ─────────────── screens/MyList ─────────────── */
 function renderList() {
   const v = $('#view-list');
-  v.innerHTML = `<div style="padding:0 var(--lg) var(--lg)"><h1 class="h1">Minha lista</h1></div>`;
+  v.innerHTML = `<div style="padding:0 var(--px) var(--lg)"><h1 class="h1">Minha lista</h1></div>`;
   if (!myList.length) {
     v.appendChild(stateEl(ICON.book.replace('<svg', '<svg width="26" height="26"'), 'Sua lista está vazia', 'Toque no + em qualquer título para salvar aqui.', 'Explorar catálogo', () => go('explore')));
     return;
@@ -1547,6 +1651,7 @@ async function openDetails(mediaType, id, autoplay = false) {
     sheet.appendChild(detailsEl(d, autoplay));
     sheet.querySelector('.sheet-close')?.focus();
     track('open', { media_type: d.mediaType, title_id: d.id, title_name: d.title, genre: d.genres[0] || null });
+    openCount++; lastDetails = d;   // alimenta a sugestão pós-escolha
   } catch (e) {
     sheet.innerHTML = '';
     const s = stateEl(ICON.warn, 'Não foi possível abrir', e.userMessage || 'Tente de novo.', 'Fechar', closeDetails);
@@ -1561,6 +1666,7 @@ function closeDetails() {
   document.body.style.overflow = '';
   setTimeout(() => { $('#sheet').innerHTML = ''; }, 400); // mata o iframe do trailer
   lastFocus?.focus?.();
+  setTimeout(maybeSuggestSimilar, 450);   // sugestão só depois do modal sair de cena
 }
 
 function detailsSkeleton() {
@@ -1712,7 +1818,7 @@ function detailsEl(d, autoplay) {
     sec.appendChild(el('div', 'rail-head', '<h2 class="h2">Títulos semelhantes</h2>'));
     const track = el('div', 'rail-track');
     d.similar.forEach(t => track.appendChild(cardEl(t)));
-    sec.appendChild(track);
+    sec.appendChild(railBody(track));
     root.appendChild(sec);
   }
 
@@ -1901,10 +2007,81 @@ $('#gateRetry').onclick = async () => {
   }
 };
 
+/* ─────────────── components/Popup ───────────────
+   Sugestões em popup: Top 10 da semana e "parecidos com o que você viu".
+   Um por vez; clicar num card fecha o popup e abre os detalhes. */
+function openPop(title, subtitle, items, { ranked = false } = {}) {
+  const pop = $('#pop'), back = $('#popBackdrop');
+  pop.innerHTML = '';
+  const head = el('div', 'pop-head');
+  const tt = el('div');
+  tt.appendChild(el('h2', 'h2', title));
+  if (subtitle) tt.appendChild(el('p', 'caption t-sec', esc(subtitle)));
+  head.appendChild(tt);
+  const close = el('button', 'pop-close', ICON.close);
+  close.setAttribute('aria-label', 'Fechar sugestões');
+  close.onclick = closePop;
+  head.appendChild(close);
+  pop.appendChild(head);
+
+  const track = el('div', 'rail-track');
+  items.forEach((t, i) => {
+    const c = cardEl(t, ranked ? i + 1 : null);
+    const origin = c.onclick;
+    c.onclick = ev => { closePop(); origin?.call(c, ev); };
+    track.appendChild(c);
+  });
+  pop.appendChild(railBody(track));
+
+  back.classList.add('open');
+  pop.classList.add('open');
+  back.onclick = closePop;
+  close.focus();
+}
+function closePop() {
+  $('#pop').classList.remove('open');
+  $('#popBackdrop').classList.remove('open');
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('#pop').classList.contains('open')) closePop(); });
+
+/* ── Top 10 da semana: consumo real da plataforma, 1 popup por semana ── */
+async function maybeShowTop10() {
+  if (!sb || !currentUser) return;
+  const weekKey = String(Math.floor(Date.now() / (7 * 864e5)));   // vira toda semana
+  if ((await kv.get('top10-week-seen')) === weekKey) return;
+  try {
+    const { data } = await sb.rpc('top_week');
+    // Detalhes de cada título (cache de 1h já dedupe entre popup e navegação).
+    const own = (await Promise.allSettled(
+      (data || []).map(r => repo.details(r.media_type, r.title_id))
+    )).filter(r => r.status === 'fulfilled').map(r => r.value);
+    // Plataforma nova tem pouco consumo: completa com o trending da semana.
+    let items = dedupe(own);
+    if (items.length < 10) {
+      const p = await repo.page('/trending/movie/week');
+      items = dedupe([...items, ...p.items]).slice(0, 10);
+    }
+    if (!items.length) return;
+    await kv.set('top10-week-seen', weekKey);
+    openPop('🔥 Top 10 da semana', 'O que mais bombou no CINE nos últimos 7 dias.', items.slice(0, 10), { ranked: true });
+  } catch { /* sugestão é bônus — nunca atrapalha o app */ }
+}
+
+/* ── sugestão pós-escolha: depois da 2ª abertura, mostra parecidos ── */
+let openCount = 0, lastDetails = null, suggestedThisSession = false;
+function maybeSuggestSimilar() {
+  if (suggestedThisSession || openCount < 2) return;
+  const d = lastDetails;
+  if (!d || !d.similar?.length) return;
+  suggestedThisSession = true;
+  openPop(`Porque você viu ${d.title}`, 'Separamos títulos com a mesma vibe.', d.similar.slice(0, 10));
+}
+
 async function boot() {
   buildTabs();
   await loadMyList();
   renderHome();
+  setTimeout(maybeShowTop10, 2500);   // deixa a Home respirar antes do popup
 }
 
 /* ─────────────── core/auth ───────────────

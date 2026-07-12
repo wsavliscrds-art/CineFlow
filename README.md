@@ -24,6 +24,10 @@ docs/arquitetura.md              Documento de arquitetura + design system.
    ninguém precisa de chave da TMDB. A tela de conexão só aparece como fallback.
 3. Buscas, aberturas de título e sessões geram eventos (tabela `events`, protegida por RLS)
    que alimentam o painel `/admin` — restrito a contas com papel `admin` no servidor.
+4. O consumo da semana vira o **Top 10 da semana**: um popup semanal com o ranking real da
+   plataforma (RPC `top_week()`, agregado anônimo; completa com o trending da TMDB enquanto
+   a base é pequena). Depois de algumas escolhas, o app também sugere títulos parecidos em
+   popup. No desktop, as esteiras ganham setas ← → e a navegação vira uma pílula flutuante.
 
 ## Rodar local
 
