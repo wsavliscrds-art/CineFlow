@@ -2,7 +2,7 @@
 
 Catálogo de filmes e séries sobre a API do TMDB. Front-end estático, sem build. O token da API vive num Cloudflare Worker, nunca no navegador.
 
-**Demo:** _(preencher após o deploy)_
+**Demo:** [cine-flow-sable.vercel.app](https://cine-flow-sable.vercel.app)
 
 ---
 
