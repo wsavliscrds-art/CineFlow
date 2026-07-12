@@ -16,8 +16,13 @@ core/http        request(): dedup, cache de memória, modo chave vs modo proxy
 data/mapper      toTitle(): DTO snake_case da TMDB → entidade camelCase
 data/repository  repo.page / discover / search / genres / details / season
 domain/sorting   ⭐ ordenação A–Z client-side (ver abaixo)
-presentation/*   store, components (Card, Rail, Seasons), screens, navegação
+core/auth        Supabase Auth: registro (nome+email+senha), login, verificação por email
+presentation/*   store, components (Card, Rail, Seasons), screens, navegação, tela de conta
 ```
+
+A conta de usuário (Supabase) e a credencial do TMDB são independentes: primeiro
+a pessoa entra na conta (`#auth`), depois conecta o TMDB (`#gate`). A chave
+publishable do Supabase no `index.html` é pública por design — não é segredo.
 
 ## Regras que não são negociáveis
 

@@ -69,6 +69,30 @@ Abra o site e, na tela de conexão, **cole a URL do Worker** em vez da chave. O 
 
 ---
 
+## Conta de usuário e verificação por email
+
+O app tem registro/login (nome, email e senha) via **Supabase Auth**. O fluxo:
+
+1. **Criar conta** → o Supabase envia um link de verificação para o email.
+2. O usuário clica no link → o email é confirmado e ele volta para o site já logado.
+3. Sem confirmar, o login é bloqueado (o app reabre o painel "Confirme seu email", com reenvio).
+
+A conta e a credencial do TMDB são independentes: primeiro entra na conta, depois conecta o TMDB.
+
+**Configuração única no painel do Supabase** (Authentication → URL Configuration):
+
+| Campo | Valor |
+|---|---|
+| Site URL | `https://cine-flow-sable.vercel.app` |
+
+Sem isso, o link do email confirma a conta mas redireciona para `localhost:3000` (padrão do Supabase).
+
+> O email de verificação usa o SMTP embutido do Supabase, que tem limite de ~2 emails/hora
+> por projeto — suficiente para testar. Para produção de verdade, configure um SMTP próprio
+> em Authentication → Emails.
+
+---
+
 ## Segurança: o que é e o que não é
 
 | | Chave direta | Proxy |

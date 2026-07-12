@@ -443,9 +443,29 @@
   .more-btn { color: var(--text-primary); font-size: 13px; font-weight: 600; align-self: flex-start; }
 
   /* ════════════════════════════════════════════════════════
-     TELA DE CONEXÃO (API KEY)
+     TELA DE CONEXÃO (API KEY) + TELA DE CONTA (AUTH)
      ════════════════════════════════════════════════════════ */
   .gate { position: fixed; inset: 0; z-index: 90; background: var(--bg); display: grid; place-items: center; padding: var(--xl); }
+  #auth { z-index: 95; }
+
+  .seg {
+    display: flex; padding: 3px; gap: 3px;
+    background: var(--surface1); border: 1px solid var(--border); border-radius: var(--r-md);
+  }
+  .seg button {
+    flex: 1; height: 38px; border-radius: calc(var(--r-md) - 3px);
+    font-size: 14px; font-weight: 600; color: var(--text-secondary);
+    transition: background var(--d-fast) var(--ease), color var(--d-fast) var(--ease);
+  }
+  .seg button.on { background: var(--surface3); color: var(--text-primary); }
+
+  .verify-icon {
+    width: 56px; height: 56px; border-radius: 50%;
+    background: var(--accent-soft); color: var(--accent);
+    display: grid; place-items: center; margin: 0 auto;
+  }
+  .link-btn { color: var(--accent); font-size: 14px; font-weight: 600; }
+  .link-btn:disabled { color: var(--text-tertiary); cursor: default; }
   .gate-card { width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: var(--lg); }
   .gate input {
     height: 48px; padding: 0 var(--md); width: 100%;
@@ -475,6 +495,41 @@
 </style>
 
 <!-- ═══════════════════════ MARKUP ═══════════════════════ -->
+<div class="gate" id="auth" style="display:none">
+  <!-- formulário: entrar / criar conta -->
+  <div class="gate-card" id="authForm">
+    <div class="brand" style="font-size:28px">CINE<span>.</span></div>
+    <div class="seg" role="tablist">
+      <button id="segLogin" class="on" role="tab">Entrar</button>
+      <button id="segSignup" role="tab">Criar conta</button>
+    </div>
+    <div>
+      <h1 class="h2" style="margin-bottom:6px" id="authTitle">Bem-vindo de volta</h1>
+      <p class="body t-sec" id="authSub">Entre com seu email e senha para continuar.</p>
+    </div>
+    <input id="authName" type="text" placeholder="Seu nome" autocomplete="name" style="display:none" />
+    <input id="authEmail" type="email" placeholder="Email" autocomplete="email" spellcheck="false" />
+    <input id="authPass" type="password" placeholder="Senha (mínimo 6 caracteres)" autocomplete="current-password" />
+    <div class="err" id="authErr"></div>
+    <button class="btn btn-primary" id="authBtn" style="width:100%">Entrar</button>
+    <p class="caption t-ter">Sua conta só guarda nome e email. A verificação chega por email — confira também o spam.</p>
+  </div>
+
+  <!-- pós-registro: aguardando confirmação do email -->
+  <div class="gate-card" id="authVerify" style="display:none; text-align:center">
+    <div class="verify-icon">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg>
+    </div>
+    <div>
+      <h1 class="h2" style="margin-bottom:6px">Confirme seu email</h1>
+      <p class="body t-sec">Enviamos um link de verificação para<br /><b id="verifyEmail" style="color:var(--text-primary)"></b></p>
+    </div>
+    <p class="caption t-ter">Clique no link do email para ativar sua conta. Depois é só voltar aqui e entrar.</p>
+    <button class="btn btn-primary" id="verifyBackBtn" style="width:100%">Já confirmei — entrar</button>
+    <button class="link-btn" id="resendBtn">Reenviar email</button>
+  </div>
+</div>
+
 <div class="gate" id="gate">
   <div class="gate-card">
     <div class="brand" style="font-size:28px">CINE<span>.</span></div>
@@ -486,6 +541,7 @@
     <div class="err" id="gateErr"></div>
     <button class="btn btn-primary" id="gateBtn" style="width:100%">Conectar</button>
     <p class="caption t-ter">Pegue a chave em <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener">themoviedb.org/settings/api</a>. Para publicar o app, use um proxy — assim a chave nunca chega ao navegador.</p>
+    <button class="link-btn" id="gateLogout" style="display:none">Sair da conta</button>
   </div>
 </div>
 
@@ -515,6 +571,7 @@
 <aside class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="Detalhes do título"></aside>
 <div class="toast" id="toast"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 /* ══════════════════════════════════════════════════════════════════
    CINE — catálogo TMDB
@@ -1648,10 +1705,14 @@ $('#backdrop').onclick = closeDetails;
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('#sheet').classList.contains('open')) closeDetails(); });
 
 $('#btnLogout').onclick = async () => {
-  await kv.del('tmdb-key');
-  API_KEY = null; PROXY = null; httpCache.clear();
-  $('#gate').style.display = 'grid';
-  $('#keyInput').value = '';
+  haptic();
+  if (sb) await sb.auth.signOut();       // volta pra tela de conta
+  else {                                  // sem auth carregado: desconecta só o TMDB
+    await kv.del('tmdb-key');
+    API_KEY = null; PROXY = null; httpCache.clear();
+    $('#gate').style.display = 'grid';
+    $('#keyInput').value = '';
+  }
 };
 
 function useCredential(value) {
@@ -1694,15 +1755,168 @@ async function boot() {
   renderHome();
 }
 
-(async function init() {
+/* ─────────────── core/auth ───────────────
+   Conta de usuário via Supabase Auth: registro com nome + email + senha
+   e verificação por link enviado ao email. A chave publishable é pública
+   por design — quem manda são as políticas do projeto, não ela. */
+const SUPA = {
+  URL: 'https://oorctratoispjmnwilyo.supabase.co',
+  KEY: 'sb_publishable_JHa1ACM3fZJOQ74-kxgvMA_8drrtbbI',
+};
+const sb = window.supabase ? window.supabase.createClient(SUPA.URL, SUPA.KEY) : null;
+
+/* Mensagens da API → texto humano, no mesmo espírito de core/errors. */
+function authMessage(error) {
+  const m = (error?.message || '').toLowerCase();
+  if (m.includes('invalid login credentials')) return 'Email ou senha incorretos.';
+  if (m.includes('email not confirmed'))       return 'CONFIRM';   // sentinela: reabre o painel de verificação
+  if (m.includes('already registered'))        return 'Este email já tem uma conta. Use "Entrar".';
+  if (m.includes('at least 6'))                return 'A senha precisa de pelo menos 6 caracteres.';
+  if (m.includes('valid email') || m.includes('is invalid')) return 'Digite um email válido.';
+  if (m.includes('rate limit') || m.includes('after'))
+    return 'Muitas tentativas. Aguarde um instante e tente de novo.';
+  if (m.includes('fetch'))                     return 'Sem conexão. Verifique sua internet.';
+  return 'Não foi possível concluir. Tente novamente.';
+}
+
+/* ── presentation/auth ── */
+let authMode = 'login';
+
+function setAuthMode(mode) {
+  authMode = mode;
+  $('#segLogin').classList.toggle('on', mode === 'login');
+  $('#segSignup').classList.toggle('on', mode === 'signup');
+  $('#authName').style.display = mode === 'signup' ? '' : 'none';
+  $('#authTitle').textContent = mode === 'signup' ? 'Criar sua conta' : 'Bem-vindo de volta';
+  $('#authSub').textContent = mode === 'signup'
+    ? 'Nome, email e senha. Você recebe um link de verificação no email.'
+    : 'Entre com seu email e senha para continuar.';
+  $('#authBtn').textContent = mode === 'signup' ? 'Criar conta' : 'Entrar';
+  $('#authPass').autocomplete = mode === 'signup' ? 'new-password' : 'current-password';
+  $('#authErr').textContent = '';
+}
+
+function showAuth()   { $('#auth').style.display = 'grid'; showAuthForm(); }
+function showAuthForm()   { $('#authForm').style.display = 'flex'; $('#authVerify').style.display = 'none'; }
+function showAuthVerify(email) {
+  $('#verifyEmail').textContent = email;
+  $('#authForm').style.display = 'none';
+  $('#authVerify').style.display = 'flex';
+}
+
+async function doAuth() {
+  const name = $('#authName').value.trim();
+  const email = $('#authEmail').value.trim();
+  const pass = $('#authPass').value;
+  const err = $('#authErr'), btn = $('#authBtn');
+  err.textContent = '';
+
+  if (authMode === 'signup' && !name) { err.textContent = 'Diga seu nome.'; $('#authName').focus(); return; }
+  if (!email) { err.textContent = 'Digite seu email.'; $('#authEmail').focus(); return; }
+  if (pass.length < 6) { err.textContent = 'A senha precisa de pelo menos 6 caracteres.'; $('#authPass').focus(); return; }
+
+  btn.innerHTML = '<div class="spin" style="margin:0 auto"></div>';
+  btn.disabled = true;
+  try {
+    if (authMode === 'signup') {
+      const { data, error } = await sb.auth.signUp({
+        email, password: pass,
+        options: { data: { name }, emailRedirectTo: location.origin },
+      });
+      if (error) { err.textContent = authMessage(error); return; }
+      // Email repetido não dá erro na API — volta um user sem identities.
+      if (data.user && data.user.identities && data.user.identities.length === 0) {
+        err.textContent = 'Este email já tem uma conta. Use "Entrar".';
+        return;
+      }
+      if (data.session) return; // confirmação desativada no projeto → já entra
+      showAuthVerify(email);    // fluxo normal: aguarda o clique no link
+    } else {
+      const { error } = await sb.auth.signInWithPassword({ email, password: pass });
+      if (error) {
+        const msg = authMessage(error);
+        if (msg === 'CONFIRM') showAuthVerify(email);
+        else err.textContent = msg;
+      }
+      // sucesso: onAuthStateChange cuida da entrada
+    }
+  } catch {
+    err.textContent = 'Sem conexão. Verifique sua internet.';
+  } finally {
+    btn.textContent = authMode === 'signup' ? 'Criar conta' : 'Entrar';
+    btn.disabled = false;
+  }
+}
+
+$('#segLogin').onclick = () => { haptic(); setAuthMode('login'); };
+$('#segSignup').onclick = () => { haptic(); setAuthMode('signup'); };
+$('#authBtn').onclick = doAuth;
+[$('#authEmail'), $('#authPass'), $('#authName')].forEach(i =>
+  i.addEventListener('keydown', e => { if (e.key === 'Enter') doAuth(); }));
+
+$('#verifyBackBtn').onclick = () => { setAuthMode('login'); showAuthForm(); $('#authPass').focus(); };
+
+// A tela de conexão cobre o app inteiro — sem este atalho, quem está logado
+// mas ainda não colou a chave TMDB não teria como trocar de conta.
+if (sb) $('#gateLogout').style.display = '';
+$('#gateLogout').onclick = async () => { haptic(); await sb.auth.signOut(); };
+
+let resendCooldown = 0;
+$('#resendBtn').onclick = async () => {
+  if (resendCooldown > 0) return;
+  const email = $('#verifyEmail').textContent;
+  const btn = $('#resendBtn');
+  try { await sb.auth.resend({ type: 'signup', email, options: { emailRedirectTo: location.origin } }); } catch {}
+  resendCooldown = 60; // limite do provedor de email — evita rate limit
+  const tick = setInterval(() => {
+    resendCooldown--;
+    btn.disabled = resendCooldown > 0;
+    btn.textContent = resendCooldown > 0 ? `Reenviar email (${resendCooldown}s)` : 'Reenviar email';
+    if (resendCooldown <= 0) clearInterval(tick);
+  }, 1000);
+  btn.disabled = true;
+  toast('Email reenviado!');
+};
+
+/* ─────────────── boot ─────────────── */
+async function enterApp(user) {
+  $('#auth').style.display = 'none';
   const saved = await kv.get('tmdb-key');
   if (saved) {
     useCredential(saved);
     $('#gate').style.display = 'none';
     boot();
   } else {
+    $('#gate').style.display = 'grid';
     $('#keyInput').focus();
   }
+  const nome = user?.user_metadata?.name;
+  if (nome && !enterApp.greeted) { enterApp.greeted = true; toast(`Olá, ${nome.split(' ')[0]}!`); }
+}
+
+(async function init() {
+  // Veio do link de confirmação? O supabase-js troca o hash por sessão sozinho.
+  const confirmedNow = /type=signup/.test(location.hash);
+
+  if (!sb) {
+    // CDN de auth indisponível: segue o fluxo antigo (só a chave TMDB).
+    const saved = await kv.get('tmdb-key');
+    if (saved) { useCredential(saved); $('#gate').style.display = 'none'; boot(); }
+    else $('#keyInput').focus();
+    return;
+  }
+
+  sb.auth.onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_IN' && session) {
+      if (confirmedNow) { toast('Email confirmado! 🎉'); history.replaceState(null, '', location.pathname); }
+      enterApp(session.user);
+    }
+    if (event === 'SIGNED_OUT') { enterApp.greeted = false; showAuth(); }
+  });
+
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) enterApp(session.user);
+  else { showAuth(); $('#authEmail').focus(); }
 })();
 </script>
 </html>
