@@ -521,7 +521,21 @@
     <input id="authPass" type="password" placeholder="Senha (mínimo 6 caracteres)" autocomplete="current-password" />
     <div class="err" id="authErr"></div>
     <button class="btn btn-primary" id="authBtn" style="width:100%">Entrar</button>
+    <button class="link-btn" id="forgotBtn">Esqueci minha senha</button>
     <p class="caption t-ter">Sua conta só guarda nome e email. A verificação chega por email — confira também o spam.</p>
+  </div>
+
+  <!-- redefinição de senha (chegou pelo link do email de recuperação) -->
+  <div class="gate-card" id="authReset" style="display:none">
+    <div class="brand" style="font-size:28px">CINE<span>.</span></div>
+    <div>
+      <h1 class="h2" style="margin-bottom:6px">Nova senha</h1>
+      <p class="body t-sec">Escolha a nova senha da sua conta.</p>
+    </div>
+    <input id="resetPass" type="password" placeholder="Nova senha (mínimo 6 caracteres)" autocomplete="new-password" />
+    <input id="resetPass2" type="password" placeholder="Repita a nova senha" autocomplete="new-password" />
+    <div class="err" id="resetErr"></div>
+    <button class="btn btn-primary" id="resetBtn" style="width:100%">Salvar e entrar</button>
   </div>
 
   <!-- pós-registro: aguardando confirmação do email -->
@@ -539,17 +553,19 @@
   </div>
 </div>
 
+<!-- catálogo fora do ar: nada de token/chave na frente do usuário — só "tentar de novo" -->
 <div class="gate" id="gate">
-  <div class="gate-card">
+  <div class="gate-card" style="text-align:center">
     <div class="brand" style="font-size:28px">CINE<span>.</span></div>
-    <div>
-      <h1 class="h2" style="margin-bottom:6px">Conectar ao TMDB</h1>
-      <p class="body t-sec">O catálogo integrado está indisponível agora. Cole sua chave da API (v3), seu token de leitura (v4) — ou a URL do seu proxy. Fica salvo só neste dispositivo.</p>
+    <div class="verify-icon">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
     </div>
-    <input id="keyInput" type="password" placeholder="Chave, token ou https://seu-proxy.workers.dev" autocomplete="off" spellcheck="false" />
+    <div>
+      <h1 class="h2" style="margin-bottom:6px">Catálogo indisponível</h1>
+      <p class="body t-sec">Não conseguimos carregar os filmes e séries agora. Costuma ser uma instabilidade rápida.</p>
+    </div>
     <div class="err" id="gateErr"></div>
-    <button class="btn btn-primary" id="gateBtn" style="width:100%">Conectar</button>
-    <p class="caption t-ter">Pegue a chave em <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener">themoviedb.org/settings/api</a>. Para publicar o app, use um proxy — assim a chave nunca chega ao navegador.</p>
+    <button class="btn btn-primary" id="gateRetry" style="width:100%">Tentar novamente</button>
     <button class="link-btn" id="gateLogout" style="display:none">Sair da conta</button>
   </div>
 </div>
@@ -1854,47 +1870,36 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('#sheet'
 $('#btnLogout').onclick = async () => {
   haptic();
   if (sb) { track('logout'); await sb.auth.signOut(); }  // volta pra tela de conta
-  else {                                  // sem auth carregado: desconecta só o TMDB
-    await kv.del('tmdb-key');
-    API_KEY = null; PROXY = null; httpCache.clear();
-    $('#gate').style.display = 'grid';
-    $('#keyInput').value = '';
-  }
+  else location.reload();                  // sem auth carregado: recomeça do zero
 };
 
+/* Credencial própria (dev): existe só via localStorage — nunca há UI de token.
+   kv.set('tmdb-key', 'sua-chave-ou-url') no console e recarregue. */
 function useCredential(value) {
   if (isUrl(value)) { PROXY = value.replace(/\/+$/, ''); API_KEY = null; }
   else { API_KEY = value; PROXY = null; }
 }
 
-async function connect(value) {
-  const btn = $('#gateBtn'), err = $('#gateErr');
-  err.textContent = '';
-  btn.innerHTML = '<div class="spin"></div>';
+/* Catálogo fora do ar → única saída visível é tentar de novo. */
+$('#gateRetry').onclick = async () => {
+  if (!sb) { location.reload(); return; }  // sem auth carregado, recomeçar é o retry
+  const btn = $('#gateRetry');
+  $('#gateErr').textContent = '';
+  btn.innerHTML = '<div class="spin" style="margin:0 auto"></div>';
   btn.disabled = true;
-  useCredential(value);
+  PROXY = DEFAULT_PROXY; API_KEY = null;
   try {
-    await request('/configuration', {}, { cache: false });   // valida a credencial de verdade
-    await kv.set('tmdb-key', value);
+    await request('/configuration', {}, { cache: false });
     $('#gate').style.display = 'none';
     boot();
-  } catch (e) {
-    API_KEY = null; PROXY = null;
-    err.textContent = PROXY === null && isUrl(value)
-      ? 'O proxy não respondeu. Confira a URL e o CORS.'
-      : (e.userMessage || 'Não foi possível conectar.');
+  } catch {
+    PROXY = null;
+    $('#gateErr').textContent = 'Ainda fora do ar. Tente de novo em instantes.';
   } finally {
-    btn.textContent = 'Conectar';
+    btn.textContent = 'Tentar novamente';
     btn.disabled = false;
   }
-}
-
-$('#gateBtn').onclick = () => {
-  const k = $('#keyInput').value.trim();
-  if (!k) { $('#gateErr').textContent = 'Cole a chave para continuar.'; return; }
-  connect(k);
 };
-$('#keyInput').addEventListener('keydown', e => { if (e.key === 'Enter') $('#gateBtn').click(); });
 
 async function boot() {
   buildTabs();
@@ -1968,7 +1973,8 @@ function setAuthMode(mode) {
 }
 
 function showAuth()   { $('#auth').style.display = 'grid'; showAuthForm(); }
-function showAuthForm()   { $('#authForm').style.display = 'flex'; $('#authVerify').style.display = 'none'; }
+function showAuthForm()   { $('#authForm').style.display = 'flex'; $('#authVerify').style.display = 'none'; $('#authReset').style.display = 'none'; }
+function showAuthReset()  { $('#auth').style.display = 'grid'; $('#authForm').style.display = 'none'; $('#authVerify').style.display = 'none'; $('#authReset').style.display = 'flex'; }
 function showAuthVerify(email) {
   $('#verifyEmail').textContent = email;
   $('#authForm').style.display = 'none';
@@ -2027,6 +2033,47 @@ $('#authBtn').onclick = doAuth;
 
 $('#verifyBackBtn').onclick = () => { setAuthMode('login'); showAuthForm(); $('#authPass').focus(); };
 
+/* ── redefinição de senha ── */
+let forgotCooldown = 0;
+$('#forgotBtn').onclick = async () => {
+  if (forgotCooldown > 0) return;
+  const email = $('#authEmail').value.trim();
+  if (!email) { $('#authErr').textContent = 'Digite seu email acima e toque de novo em "Esqueci minha senha".'; $('#authEmail').focus(); return; }
+  $('#authErr').textContent = '';
+  try {
+    await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin });
+  } catch {}
+  // Resposta idêntica com ou sem conta: não confirmamos email de ninguém.
+  toast('Se existir conta, o link de redefinição chega nesse email.');
+  forgotCooldown = 60;
+  const btn = $('#forgotBtn');
+  const tick = setInterval(() => {
+    forgotCooldown--;
+    btn.disabled = forgotCooldown > 0;
+    btn.textContent = forgotCooldown > 0 ? `Esqueci minha senha (${forgotCooldown}s)` : 'Esqueci minha senha';
+    if (forgotCooldown <= 0) clearInterval(tick);
+  }, 1000);
+  btn.disabled = true;
+};
+
+$('#resetBtn').onclick = async () => {
+  const p1 = $('#resetPass').value, p2 = $('#resetPass2').value;
+  const err = $('#resetErr'), btn = $('#resetBtn');
+  err.textContent = '';
+  if (p1.length < 6) { err.textContent = 'A senha precisa de pelo menos 6 caracteres.'; return; }
+  if (p1 !== p2) { err.textContent = 'As senhas não conferem.'; return; }
+  btn.innerHTML = '<div class="spin" style="margin:0 auto"></div>';
+  btn.disabled = true;
+  const { error } = await sb.auth.updateUser({ password: p1 });
+  btn.textContent = 'Salvar e entrar';
+  btn.disabled = false;
+  if (error) { err.textContent = authMessage(error); return; }
+  toast('Senha atualizada! 🎉');
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) enterApp(session.user);
+};
+$('#resetPass2').addEventListener('keydown', e => { if (e.key === 'Enter') $('#resetBtn').click(); });
+
 // A tela de conexão cobre o app inteiro — sem este atalho, quem está logado
 // mas ainda não colou a chave TMDB não teria como trocar de conta.
 if (sb) $('#gateLogout').style.display = '';
@@ -2079,8 +2126,7 @@ async function enterApp(user) {
       boot();
     } catch {
       PROXY = null;
-      $('#gate').style.display = 'grid';
-      $('#keyInput').focus();
+      $('#gate').style.display = 'grid';   // tela "catálogo indisponível" + tentar de novo
     }
   }
 
@@ -2102,16 +2148,27 @@ async function enterApp(user) {
   if (hashErr) history.replaceState(null, '', location.pathname);
 
   if (!sb) {
-    // CDN de auth indisponível: segue o fluxo antigo (só a chave TMDB).
+    // CDN de auth indisponível: tenta uma credencial de dev salva; senão,
+    // mostra a tela de indisponibilidade (o retry recarrega tudo).
     const saved = await kv.get('tmdb-key');
     if (saved) { useCredential(saved); $('#gate').style.display = 'none'; boot(); }
-    else $('#keyInput').focus();
+    else { $('#auth').style.display = 'none'; $('#gate').style.display = 'grid'; }
     return;
   }
 
+  // Veio do link "esqueci minha senha"? Sessão entra, mas antes troca a senha.
+  const recoveryNow = /type=recovery/.test(location.hash);
+
   sb.auth.onAuthStateChange((event, session) => {
     SESSION_TOKEN = session?.access_token || null;
+    if (event === 'PASSWORD_RECOVERY') {
+      history.replaceState(null, '', location.pathname);
+      showAuthReset();
+      $('#resetPass').focus();
+      return;
+    }
     if (event === 'SIGNED_IN' && session) {
+      if (recoveryNow) return; // o evento PASSWORD_RECOVERY cuida da troca
       if (confirmedNow) { toast('Email confirmado! 🎉'); history.replaceState(null, '', location.pathname); }
       enterApp(session.user);
     }
@@ -2123,7 +2180,8 @@ async function enterApp(user) {
 
   const { data: { session } } = await sb.auth.getSession();
   SESSION_TOKEN = session?.access_token || null;
-  if (session) enterApp(session.user);
+  if (session && recoveryNow) { showAuthReset(); $('#resetPass').focus(); }
+  else if (session) enterApp(session.user);
   else {
     showAuth();
     if (hashErr) $('#authErr').textContent =

@@ -101,8 +101,13 @@ checagem acontece no servidor (`is_admin()` dentro de cada RPC + RLS). O painel 
 | Site | CSP, X-Frame-Options DENY, nosniff, Referrer-Policy (via `vercel.json`) |
 | Front | Nenhum segredo no bundle; chave publishable do Supabase é pública por design |
 
-A tela de conexão antiga continua como fallback: cole uma chave TMDB própria (fica no
-`localStorage`, bom pra dev) ou a URL de um Worker seu (`tmdb-proxy/`).
+**Nenhuma tela do app menciona token ou chave de API.** Se o catálogo cair, o usuário vê
+"Catálogo indisponível" com um botão de tentar novamente — e só. Para desenvolvimento,
+uma credencial própria pode ser injetada por baixo dos panos via console:
+`kv.set('tmdb-key', 'sua-chave-ou-url')` e recarregue (fica no `localStorage`).
+
+O fluxo "Esqueci minha senha" é todo dentro do app: o link do email abre a tela de nova
+senha no próprio site.
 
 ---
 
