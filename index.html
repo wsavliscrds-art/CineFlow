@@ -316,13 +316,20 @@
   .card-year { font-size: 11px; color: var(--text-tertiary); }
 
   /* Top 10 — numeral gigante */
-  .card.ranked { width: calc(var(--card-w) + 42px); flex-direction: row; align-items: flex-end; gap: 0; }
+  /* Card ranqueado: número gigante ancorado atrás do pôster (largura fixa,
+     mesmo com 2 dígitos) e alinhado ao topo pra não cobrir a legenda vizinha. */
+  .card.ranked {
+    position: relative; align-self: flex-start;
+    width: calc(var(--card-w) + 40px); padding-left: 40px;
+    flex-direction: row; align-items: flex-end; gap: 0;
+  }
   .rank-num {
+    position: absolute; left: -2px; bottom: -4px; z-index: 0;
     font-size: 92px; line-height: 0.72; font-weight: 800; letter-spacing: -6px;
     color: transparent; -webkit-text-stroke: 2px var(--text-tertiary);
-    margin-right: -14px; margin-bottom: -6px; user-select: none;
+    user-select: none; pointer-events: none;
   }
-  .card.ranked .poster { width: var(--card-w); flex: 0 0 var(--card-w); }
+  .card.ranked .poster { width: var(--card-w); flex: 0 0 var(--card-w); position: relative; z-index: 1; }
 
   /* ════════════════════════════════════════════════════════
      SKELETON / SHIMMER
