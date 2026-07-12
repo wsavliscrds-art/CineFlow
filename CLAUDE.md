@@ -17,12 +17,25 @@ data/mapper      toTitle(): DTO snake_case da TMDB → entidade camelCase
 data/repository  repo.page / discover / search / genres / details / season
 domain/sorting   ⭐ ordenação A–Z client-side (ver abaixo)
 core/auth        Supabase Auth: registro (nome+email+senha), login, verificação por email
+data/telemetry   track(): eventos search/open/session/login/logout → tabela events
 presentation/*   store, components (Card, Rail, Seasons), screens, navegação, tela de conta
 ```
 
-A conta de usuário (Supabase) e a credencial do TMDB são independentes: primeiro
-a pessoa entra na conta (`#auth`), depois conecta o TMDB (`#gate`). A chave
-publishable do Supabase no `index.html` é pública por design — não é segredo.
+Depois do login o app usa o **proxy integrado** (Supabase Edge Function em
+`supabase/functions/tmdb-proxy/`) autenticado com a sessão — ninguém precisa de
+chave TMDB. A tela `#gate` é só fallback. A chave publishable do Supabase no
+`index.html` é pública por design — não é segredo.
+
+## Outras peças
+
+```
+admin.html                     painel administrativo (página separada, mesma conta Supabase;
+                               acesso via RPCs que checam is_admin() no servidor)
+supabase/functions/tmdb-proxy  proxy TMDB: allowlist, rate limit por usuário, bloqueio,
+                               token no Vault (secret TMDB_TOKEN) — deploy via MCP/CLI do Supabase
+supabase (banco)               profiles, events, favorites, admin_audit + RPCs admin_* (RLS em tudo)
+tmdb-proxy/                    alternativa em Cloudflare Worker (mesma allowlist)
+```
 
 ## Regras que não são negociáveis
 

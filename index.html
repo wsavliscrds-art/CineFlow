@@ -384,6 +384,15 @@
   .sheet-body { padding: var(--lg) var(--lg) var(--xxxl); display: flex; flex-direction: column; gap: var(--lg); margin-top: -32px; position: relative; z-index: 2; }
   .meta-row { display: flex; align-items: center; gap: var(--sm); flex-wrap: wrap; }
   .pill { padding: 3px 8px; border-radius: var(--r-sm); background: var(--surface2); border: 1px solid var(--border); font-size: 12px; font-weight: 600; color: var(--text-secondary); }
+  .pill-cert { border-color: var(--border-strong); color: var(--text-primary); }
+
+  /* ── onde assistir ── */
+  .prov-row { display: flex; align-items: center; gap: var(--sm); flex-wrap: wrap; }
+  .prov-label { flex: 0 0 72px; }
+  .prov-logo {
+    width: 42px; height: 42px; border-radius: var(--r-md); display: block;
+    background: var(--surface2); border: 1px solid var(--border);
+  }
 
   .cast { display: flex; gap: var(--lg); overflow-x: auto; scrollbar-width: none; padding-bottom: 4px; }
   .cast::-webkit-scrollbar { display: none; }
@@ -535,7 +544,7 @@
     <div class="brand" style="font-size:28px">CINE<span>.</span></div>
     <div>
       <h1 class="h2" style="margin-bottom:6px">Conectar ao TMDB</h1>
-      <p class="body t-sec">Cole sua chave da API (v3), seu token de leitura (v4) — ou a URL do seu proxy. Fica salvo só neste dispositivo.</p>
+      <p class="body t-sec">O catálogo integrado está indisponível agora. Cole sua chave da API (v3), seu token de leitura (v4) — ou a URL do seu proxy. Fica salvo só neste dispositivo.</p>
     </div>
     <input id="keyInput" type="password" placeholder="Chave, token ou https://seu-proxy.workers.dev" autocomplete="off" spellcheck="false" />
     <div class="err" id="gateErr"></div>
@@ -660,6 +669,12 @@ async function request(path, params = {}, { cache = true, ttl = 5 * 60_000 } = {
 
   const headers = { Accept: 'application/json' };
   if (!PROXY && isV4(API_KEY)) headers.Authorization = `Bearer ${API_KEY}`;
+  // Proxy integrado (Edge Function): autentica com a sessão do usuário —
+  // é o que permite rate limit por conta e bloqueio no servidor.
+  if (PROXY && PROXY === DEFAULT_PROXY) {
+    headers.apikey = SUPA.KEY;
+    if (SESSION_TOKEN) headers.Authorization = `Bearer ${SESSION_TOKEN}`;
+  }
 
   const inflight = (async () => {
     let res;
@@ -761,13 +776,36 @@ const repo = {
   },
 
   async details(mediaType, id) {
-    // append_to_response: 4 sub-requisições em 1 chamada HTTP.
+    // append_to_response: 6 sub-requisições em 1 chamada HTTP.
+    const certSource = mediaType === 'tv' ? 'content_ratings' : 'release_dates';
     const d = await request(`/${mediaType}/${id}`, {
-      append_to_response: 'videos,credits,similar',
+      append_to_response: `videos,credits,similar,watch/providers,${certSource}`,
       include_video_language: 'pt-BR,pt,en,null',
     }, { ttl: 60 * 60_000 });
 
+    // Onde assistir (região BR) — dados da JustWatch via TMDB.
+    const wp = (d['watch/providers']?.results || {}).BR || {};
+    const provList = arr => (arr || []).map(p => ({ name: p.provider_name, logo: img(p.logo_path, 'w92') }));
+
+    // Classificação indicativa: BR primeiro, EUA como fallback.
+    let certification = null;
+    if (mediaType === 'tv') {
+      const rt = d.content_ratings?.results || [];
+      certification = (rt.find(r => r.iso_3166_1 === 'BR') || rt.find(r => r.iso_3166_1 === 'US'))?.rating || null;
+    } else {
+      const rd = d.release_dates?.results || [];
+      const pick = c => (rd.find(r => r.iso_3166_1 === c)?.release_dates || []).find(x => x.certification)?.certification;
+      certification = pick('BR') || pick('US') || null;
+    }
+
     return {
+      providers: {
+        stream: provList(wp.flatrate),
+        rent: provList(wp.rent),
+        buy: provList(wp.buy),
+        link: wp.link || null,
+      },
+      certification,
       ...toTitle(d, mediaType),
       backdropUrl: img(d.backdrop_path, TMDB.SIZES.HERO),
       tagline: d.tagline || '',
@@ -868,11 +906,34 @@ const hasActiveFilters = () =>
 
 let myList = [];
 const inList = (id, t) => myList.some(x => x.id === id && x.mediaType === t);
+
+/* Fonte da verdade: a conta (Supabase). O kv local é cache/fallback offline. */
+async function loadMyList() {
+  if (sb && currentUser) {
+    const { data, error } = await sb.from('favorites').select('title').order('added_at', { ascending: false });
+    if (!error && data) {
+      myList = data.map(r => r.title);
+      await kv.set('my-list', myList);
+      return;
+    }
+  }
+  myList = (await kv.get('my-list')) || [];
+}
+
 async function toggleList(title) {
   const i = myList.findIndex(x => x.id === title.id && x.mediaType === title.mediaType);
-  if (i >= 0) { myList.splice(i, 1); toast('Removido da sua lista'); }
+  const removed = i >= 0;
+  if (removed) { myList.splice(i, 1); toast('Removido da sua lista'); }
   else { myList.unshift(title); toast('Salvo na sua lista'); }
   await kv.set('my-list', myList);
+  if (sb && currentUser) {
+    // Persistência remota fire-and-forget: a UI já respondeu.
+    const t = { id: title.id, mediaType: title.mediaType, title: title.title, posterUrl: title.posterUrl, rating: title.rating, releaseYear: title.releaseYear, overview: title.overview, backdropUrl: title.backdropUrl, genreIds: title.genreIds };
+    const q = removed
+      ? sb.from('favorites').delete().match({ user_id: currentUser.id, title_id: title.id, media_type: title.mediaType })
+      : sb.from('favorites').upsert({ user_id: currentUser.id, title_id: title.id, media_type: title.mediaType, title: t });
+    q.then(() => {}, () => {});
+  }
   if (current === 'list') renderList();
   return i < 0;
 }
@@ -1350,12 +1411,59 @@ function renderSearch() {
     <div class="searchbar">
       ${ICON.search.replace('<svg', '<svg width="18" height="18" style="color:var(--text-tertiary);flex:0 0 auto"')}
       <input id="q" placeholder="Filme, série…" autocomplete="off" enterkeyhint="search" />
+      <button id="micBtn" aria-label="Buscar por voz" style="display:none;flex:0 0 auto;color:var(--text-tertiary)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-10"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+      </button>
+    </div>
+    <div id="recentWrap" style="display:none;padding:0 var(--lg) var(--md)">
+      <span class="overline t-ter">Recentes</span>
+      <div id="recentChips" class="meta-row" style="margin-top:var(--sm)"></div>
     </div>
     <div id="sRes"></div>
   `;
   const box = $('#sRes');
   box.appendChild(stateEl(ICON.search.replace('<svg', '<svg width="26" height="26"'), 'O que você quer ver?', 'Busque por título de filme ou série.'));
 
+  // Histórico do usuário: últimas buscas da conta (RLS garante que só vê as suas).
+  if (sb && currentUser) {
+    sb.from('events').select('query').eq('kind', 'search').not('query', 'is', null)
+      .order('created_at', { ascending: false }).limit(30)
+      .then(({ data }) => {
+        const seen = new Set();
+        const recents = (data || []).map(r => r.query).filter(q => q && !seen.has(q.toLowerCase()) && seen.add(q.toLowerCase())).slice(0, 8);
+        if (!recents.length) return;
+        const chips = $('#recentChips');
+        recents.forEach(q => {
+          const c = el('button', 'pill', esc(q));
+          c.onclick = () => { $('#q').value = q; $('#q').dispatchEvent(new Event('input')); };
+          chips.appendChild(c);
+        });
+        $('#recentWrap').style.display = '';
+      }, () => {});
+  }
+
+  // Pesquisa por voz (Web Speech API — aparece só onde o navegador suporta).
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (SR) {
+    const mic = $('#micBtn');
+    mic.style.display = '';
+    mic.onclick = () => {
+      haptic();
+      const rec = new SR();
+      rec.lang = 'pt-BR'; rec.interimResults = false;
+      mic.style.color = 'var(--accent)';
+      rec.onresult = ev => {
+        const said = ev.results[0][0].transcript;
+        $('#q').value = said;
+        $('#q').dispatchEvent(new Event('input'));
+      };
+      rec.onend = () => { mic.style.color = 'var(--text-tertiary)'; };
+      rec.onerror = () => { mic.style.color = 'var(--text-tertiary)'; toast('Não consegui te ouvir'); };
+      rec.start();
+    };
+  }
+
+  let lastTracked = '';
   $('#q').oninput = e => {
     const q = e.target.value.trim();
     clearTimeout(searchT);
@@ -1371,6 +1479,11 @@ function renderSearch() {
     searchT = setTimeout(async () => {                       // debounce 350ms
       try {
         const p = await repo.search(q);
+        // Registra a busca "estabilizada" (não cada tecla) e sem repetição imediata.
+        if (q.length >= 3 && q.toLowerCase() !== lastTracked) {
+          lastTracked = q.toLowerCase();
+          track('search', { query: q });
+        }
         box.innerHTML = '';
         if (!p.items.length) {
           box.appendChild(stateEl(ICON.empty, `Sem resultados para "${q}"`, 'Verifique a grafia ou tente outro termo.'));
@@ -1417,6 +1530,7 @@ async function openDetails(mediaType, id, autoplay = false) {
     sheet.innerHTML = '';
     sheet.appendChild(detailsEl(d, autoplay));
     sheet.querySelector('.sheet-close')?.focus();
+    track('open', { media_type: d.mediaType, title_id: d.id, title_name: d.title, genre: d.genres[0] || null });
   } catch (e) {
     sheet.innerHTML = '';
     const s = stateEl(ICON.warn, 'Não foi possível abrir', e.userMessage || 'Tente de novo.', 'Fechar', closeDetails);
@@ -1443,6 +1557,11 @@ function detailsSkeleton() {
       <div class="skel" style="width:100%;height:14px"></div>
       <div class="skel" style="width:92%;height:14px"></div>
       <div class="skel" style="width:60%;height:14px"></div>
+      <div style="display:flex;gap:var(--sm)">
+        <div class="skel" style="width:42px;height:42px;border-radius:10px"></div>
+        <div class="skel" style="width:42px;height:42px;border-radius:10px"></div>
+        <div class="skel" style="width:42px;height:42px;border-radius:10px"></div>
+      </div>
     </div>`;
 }
 
@@ -1488,6 +1607,7 @@ function detailsEl(d, autoplay) {
   if (d.releaseYear) meta.appendChild(el('span', 'pill', String(d.releaseYear)));
   if (d.runtime) meta.appendChild(el('span', 'pill', `${Math.floor(d.runtime / 60) ? Math.floor(d.runtime / 60) + 'h' : ''}${d.runtime % 60 ? (d.runtime % 60) + 'min' : ''}`));
   if (d.seasons) meta.appendChild(el('span', 'pill', `${d.seasons} temporada${d.seasons > 1 ? 's' : ''}`));
+  if (d.certification) meta.appendChild(el('span', 'pill pill-cert', esc(d.certification)));
   d.genres.slice(0, 3).forEach(g => meta.appendChild(el('span', 'pill', esc(g))));
   body.appendChild(meta);
 
@@ -1518,6 +1638,33 @@ function detailsEl(d, autoplay) {
     };
     body.append(ov, more);
   }
+
+  /* onde assistir — grupos vindos da TMDB/JustWatch para o Brasil */
+  const provSec = el('div');
+  provSec.style.cssText = 'display:flex;flex-direction:column;gap:var(--sm)';
+  provSec.appendChild(el('span', 'overline t-ter', 'Onde assistir'));
+  const provGroups = [['Streaming', d.providers.stream], ['Alugar', d.providers.rent], ['Comprar', d.providers.buy]]
+    .filter(([, list]) => list.length);
+  if (provGroups.length) {
+    provGroups.forEach(([label, list]) => {
+      const row = el('div', 'prov-row');
+      row.appendChild(el('span', 'caption t-sec prov-label', label));
+      list.slice(0, 8).forEach(p => {
+        const im = el('img', 'prov-logo');
+        im.src = p.logo; im.alt = p.name; im.title = p.name; im.loading = 'lazy';
+        row.appendChild(im);
+      });
+      provSec.appendChild(row);
+    });
+    if (d.providers.link) {
+      const a = el('a', 'more-btn', 'Ver opções para assistir ↗');
+      a.href = d.providers.link; a.target = '_blank'; a.rel = 'noopener';
+      provSec.appendChild(a);
+    }
+  } else {
+    provSec.appendChild(el('span', 'caption t-ter', 'Sem opções de streaming no Brasil no momento.'));
+  }
+  body.appendChild(provSec);
 
   /* elenco */
   if (d.cast.length) {
@@ -1706,7 +1853,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('#sheet'
 
 $('#btnLogout').onclick = async () => {
   haptic();
-  if (sb) await sb.auth.signOut();       // volta pra tela de conta
+  if (sb) { track('logout'); await sb.auth.signOut(); }  // volta pra tela de conta
   else {                                  // sem auth carregado: desconecta só o TMDB
     await kv.del('tmdb-key');
     API_KEY = null; PROXY = null; httpCache.clear();
@@ -1751,7 +1898,7 @@ $('#keyInput').addEventListener('keydown', e => { if (e.key === 'Enter') $('#gat
 
 async function boot() {
   buildTabs();
-  myList = (await kv.get('my-list')) || [];
+  await loadMyList();
   renderHome();
 }
 
@@ -1764,6 +1911,30 @@ const SUPA = {
   KEY: 'sb_publishable_JHa1ACM3fZJOQ74-kxgvMA_8drrtbbI',
 };
 const sb = window.supabase ? window.supabase.createClient(SUPA.URL, SUPA.KEY) : null;
+
+/* Proxy TMDB integrado (Supabase Edge Function): funciona logado, sem chave.
+   Colar uma chave/URL própria na tela de conexão continua valendo (fallback). */
+const DEFAULT_PROXY = `${SUPA.URL}/functions/v1/tmdb-proxy`;
+let SESSION_TOKEN = null;   // access token da sessão — o proxy exige usuário logado
+let currentUser = null;
+
+/* ─────────────── data/telemetry ───────────────
+   Eventos anônimos por conta (busca, abertura, sessão) alimentam o painel
+   admin. Fire-and-forget: telemetria nunca pode quebrar a navegação. */
+const SESSION_KEY = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`.replace('.', '');
+const DEVICE = /iPad|Tablet/i.test(navigator.userAgent) ? 'tablet'
+  : /Mobi|Android/i.test(navigator.userAgent) ? 'mobile' : 'desktop';
+
+function track(kind, extra = {}) {
+  if (!sb || !currentUser) return;
+  sb.from('events')
+    .insert({ user_id: currentUser.id, kind, device: DEVICE, session_key: SESSION_KEY, ...extra })
+    .then(() => {}, () => {});
+}
+// Heartbeat: mantém "usuários online" e o tempo de sessão no painel.
+setInterval(() => {
+  if (currentUser && document.visibilityState === 'visible') track('session');
+}, 120_000);
 
 /* Mensagens da API → texto humano, no mesmo espírito de core/errors. */
 function authMessage(error) {
@@ -1859,7 +2030,7 @@ $('#verifyBackBtn').onclick = () => { setAuthMode('login'); showAuthForm(); $('#
 // A tela de conexão cobre o app inteiro — sem este atalho, quem está logado
 // mas ainda não colou a chave TMDB não teria como trocar de conta.
 if (sb) $('#gateLogout').style.display = '';
-$('#gateLogout').onclick = async () => { haptic(); await sb.auth.signOut(); };
+$('#gateLogout').onclick = async () => { haptic(); track('logout'); await sb.auth.signOut(); };
 
 let resendCooldown = 0;
 $('#resendBtn').onclick = async () => {
@@ -1880,18 +2051,46 @@ $('#resendBtn').onclick = async () => {
 
 /* ─────────────── boot ─────────────── */
 async function enterApp(user) {
+  currentUser = user;
+
+  // Conta bloqueada não entra — o proxy também recusa no servidor.
+  const { data: prof } = await sb.from('profiles').select('blocked').eq('id', user.id).maybeSingle();
+  if (prof?.blocked) {
+    currentUser = null;
+    await sb.auth.signOut();
+    $('#authErr').textContent = 'Sua conta foi bloqueada por um administrador.';
+    return;
+  }
+
   $('#auth').style.display = 'none';
+
   const saved = await kv.get('tmdb-key');
   if (saved) {
     useCredential(saved);
     $('#gate').style.display = 'none';
     boot();
   } else {
-    $('#gate').style.display = 'grid';
-    $('#keyInput').focus();
+    // Sem chave própria: usa o proxy integrado. Só mostra a tela de conexão
+    // se ele estiver fora do ar (fallback manual).
+    PROXY = DEFAULT_PROXY; API_KEY = null;
+    try {
+      await request('/configuration', {}, { cache: false });
+      $('#gate').style.display = 'none';
+      boot();
+    } catch {
+      PROXY = null;
+      $('#gate').style.display = 'grid';
+      $('#keyInput').focus();
+    }
   }
-  const nome = user?.user_metadata?.name;
-  if (nome && !enterApp.greeted) { enterApp.greeted = true; toast(`Olá, ${nome.split(' ')[0]}!`); }
+
+  if (!enterApp.greeted) {
+    enterApp.greeted = true;
+    track('login');            // "total de acessos" no painel
+    track('session');          // primeiro heartbeat
+    const nome = user?.user_metadata?.name;
+    if (nome) toast(`Olá, ${nome.split(' ')[0]}!`);
+  }
 }
 
 (async function init() {
@@ -1907,14 +2106,19 @@ async function enterApp(user) {
   }
 
   sb.auth.onAuthStateChange((event, session) => {
+    SESSION_TOKEN = session?.access_token || null;
     if (event === 'SIGNED_IN' && session) {
       if (confirmedNow) { toast('Email confirmado! 🎉'); history.replaceState(null, '', location.pathname); }
       enterApp(session.user);
     }
-    if (event === 'SIGNED_OUT') { enterApp.greeted = false; showAuth(); }
+    if (event === 'SIGNED_OUT') {
+      currentUser = null; enterApp.greeted = false;
+      showAuth();
+    }
   });
 
   const { data: { session } } = await sb.auth.getSession();
+  SESSION_TOKEN = session?.access_token || null;
   if (session) enterApp(session.user);
   else { showAuth(); $('#authEmail').focus(); }
 })();

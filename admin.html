@@ -1,0 +1,526 @@
+<!doctype html>
+<html lang="pt-BR">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>CINE — Painel Administrativo</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%93%8A%3C/text%3E%3C/svg%3E" />
+
+<style>
+  /* Mesmos design tokens do app — ver CLAUDE.md */
+  :root {
+    --bg: #0B0D10; --surface1: #14171C; --surface2: #1D2127; --surface3: #282D35;
+    --text-primary: #F5F7FA; --text-secondary: #A5ADBA; --text-tertiary: #6C7480;
+    --accent: #E50914; --accent-pressed: #B00610; --accent-soft: rgba(229,9,20,0.14);
+    --rating: #F5C518; --danger: #FF5A5F; --success: #3DDC84;
+    --border: rgba(255,255,255,0.08); --border-strong: rgba(255,255,255,0.16);
+    --xs: 4px; --sm: 8px; --md: 12px; --lg: 16px; --xl: 24px; --xxl: 32px;
+    --r-sm: 6px; --r-md: 10px; --r-lg: 16px; --r-pill: 999px;
+    --data: #E50914;             /* matiz única de dados — validada p/ contraste no fundo escuro */
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text-primary);
+    font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1 { font-size: 22px; letter-spacing: -0.4px; }
+  h2 { font-size: 15px; font-weight: 600; color: var(--text-secondary); margin-bottom: var(--md); }
+  button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+  input, select { font-family: inherit; }
+  a { color: var(--accent); }
+
+  .topbar {
+    position: sticky; top: 0; z-index: 10; height: 56px;
+    display: flex; align-items: center; justify-content: space-between; gap: var(--md);
+    padding: 0 var(--lg); background: rgba(11,13,16,0.9); backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+  }
+  .brand { font-weight: 800; font-size: 18px; color: var(--accent); }
+  .brand span { color: var(--text-primary); }
+  .brand small { color: var(--text-tertiary); font-weight: 600; margin-left: var(--sm); }
+
+  main { max-width: 1180px; margin: 0 auto; padding: var(--xl) var(--lg) 80px; display: flex; flex-direction: column; gap: var(--xl); }
+
+  /* login */
+  .gate { position: fixed; inset: 0; z-index: 50; background: var(--bg); display: grid; place-items: center; padding: var(--xl); }
+  .gate-card { width: 100%; max-width: 380px; display: flex; flex-direction: column; gap: var(--lg); }
+  .gate input {
+    height: 48px; padding: 0 var(--md); width: 100%; font-size: 15px;
+    background: var(--surface2); border: 1px solid var(--border); border-radius: var(--r-md);
+    color: var(--text-primary); outline: none;
+  }
+  .gate input:focus { border-color: var(--accent); }
+  .err { color: var(--danger); font-size: 13px; min-height: 18px; }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: var(--sm);
+    height: 44px; padding: 0 var(--lg); border-radius: var(--r-md);
+    font-size: 14px; font-weight: 600;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent-pressed); }
+  .btn-ghost { background: var(--surface2); border: 1px solid var(--border); }
+  .btn-sm { height: 30px; padding: 0 10px; font-size: 12px; border-radius: var(--r-sm); }
+  .btn-danger { color: var(--danger); border-color: rgba(255,90,95,0.3); }
+
+  /* tiles */
+  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--md); }
+  .tile { background: var(--surface1); border: 1px solid var(--border); border-radius: var(--r-lg); padding: var(--lg); }
+  .tile .v { font-size: 26px; font-weight: 800; letter-spacing: -0.5px; }
+  .tile .l { font-size: 12px; color: var(--text-tertiary); font-weight: 600; margin-top: 2px; }
+  .tile.live .v::after { content: '●'; color: var(--success); font-size: 10px; vertical-align: middle; margin-left: 6px; }
+
+  /* cards e grids */
+  .card { background: var(--surface1); border: 1px solid var(--border); border-radius: var(--r-lg); padding: var(--lg); }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--md); }
+  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--md); }
+  @media (max-width: 900px) { .grid2, .grid3 { grid-template-columns: 1fr; } }
+
+  svg text { font-family: inherit; }
+  .bar { fill: var(--data); rx: 2; }
+  .bar:hover { fill: #ff3a44; }
+  .axis { font-size: 10px; fill: var(--text-tertiary); }
+  .val { font-size: 10px; font-weight: 700; fill: var(--text-secondary); }
+  .gridline { stroke: rgba(255,255,255,0.06); }
+
+  /* listas ranqueadas */
+  .rank { display: flex; flex-direction: column; gap: var(--sm); }
+  .rank .row { display: flex; align-items: center; gap: var(--md); font-size: 13px; }
+  .rank .n { color: var(--text-tertiary); font-weight: 800; width: 18px; flex: 0 0 auto; }
+  .rank .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .rank .track { display: block; flex: 0 0 34%; height: 8px; background: var(--surface2); border-radius: var(--r-pill); overflow: hidden; }
+  .rank .fill { display: block; height: 100%; background: var(--data); border-radius: var(--r-pill); }
+  .rank .cnt { color: var(--text-secondary); font-weight: 700; font-size: 12px; width: 40px; text-align: right; }
+
+  /* tabelas */
+  .tbl-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-tertiary); padding: var(--sm) var(--md); border-bottom: 1px solid var(--border-strong); white-space: nowrap; }
+  td { padding: var(--sm) var(--md); border-bottom: 1px solid var(--border); white-space: nowrap; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: var(--r-pill); font-size: 11px; font-weight: 700; background: var(--surface2); border: 1px solid var(--border); }
+  .tag.admin { color: var(--rating); border-color: rgba(245,197,24,0.35); }
+  .tag.blocked { color: var(--danger); border-color: rgba(255,90,95,0.35); }
+  .tag.ok { color: var(--success); border-color: rgba(61,220,132,0.3); }
+
+  .toolbar { display: flex; align-items: center; gap: var(--md); flex-wrap: wrap; }
+  .toolbar input {
+    height: 38px; padding: 0 var(--md); font-size: 14px; min-width: 220px;
+    background: var(--surface2); border: 1px solid var(--border); border-radius: var(--r-md);
+    color: var(--text-primary); outline: none;
+  }
+  .muted { color: var(--text-tertiary); font-size: 12px; }
+  .spin { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.28); border-top-color: #fff; border-radius: 50%; animation: rot 700ms linear infinite; display: inline-block; }
+  @keyframes rot { to { transform: rotate(360deg); } }
+
+  .qr-box { background: #fff; border-radius: var(--r-md); padding: var(--md); width: fit-content; }
+  .qr-box svg { width: 180px; height: 180px; display: block; }
+
+  @media print {
+    :root { --bg:#fff; --surface1:#fff; --surface2:#f2f2f2; --text-primary:#111; --text-secondary:#333; --text-tertiary:#666; --border:#ddd; --border-strong:#bbb; }
+    .topbar, .toolbar, .no-print, #usersSec .btn { display: none !important; }
+    body { background: #fff; color: #111; }
+    .card, .tile { break-inside: avoid; border-color: #ddd; }
+  }
+</style>
+
+<!-- login -->
+<div class="gate" id="gate">
+  <div class="gate-card">
+    <div class="brand" style="font-size:26px">CINE<span>.</span><small>ADMIN</small></div>
+    <div id="loginStep">
+      <p style="color:var(--text-secondary);font-size:14px;margin-bottom:var(--lg)">Acesso restrito a administradores.</p>
+      <div style="display:flex;flex-direction:column;gap:var(--md)">
+        <input id="email" type="email" placeholder="Email" autocomplete="email" />
+        <input id="pass" type="password" placeholder="Senha" autocomplete="current-password" />
+        <div class="err" id="loginErr"></div>
+        <button class="btn btn-primary" id="loginBtn">Entrar</button>
+      </div>
+    </div>
+    <div id="mfaStep" style="display:none">
+      <p style="color:var(--text-secondary);font-size:14px;margin-bottom:var(--lg)">Digite o código do seu aplicativo autenticador.</p>
+      <div style="display:flex;flex-direction:column;gap:var(--md)">
+        <input id="mfaCode" inputmode="numeric" maxlength="6" placeholder="000000" style="text-align:center;font-size:22px;letter-spacing:8px" />
+        <div class="err" id="mfaErr"></div>
+        <button class="btn btn-primary" id="mfaBtn">Verificar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<header class="topbar" style="display:none" id="topbar">
+  <div class="brand">CINE<span>.</span><small>ADMIN</small></div>
+  <div style="display:flex;align-items:center;gap:var(--md)">
+    <span class="muted" id="refreshInfo">atualiza em 30s</span>
+    <button class="btn btn-ghost btn-sm no-print" id="printBtn">Exportar PDF</button>
+    <button class="btn btn-ghost btn-sm" id="logoutBtn">Sair</button>
+  </div>
+</header>
+
+<main id="panel" style="display:none">
+  <section>
+    <h1 style="margin-bottom:var(--lg)">Visão geral</h1>
+    <div class="tiles" id="tiles"></div>
+  </section>
+
+  <section class="grid2">
+    <div class="card"><h2>Buscas por horário (7 dias, hora de Brasília)</h2><div id="chHour"></div></div>
+    <div class="card"><h2>Dispositivos (30 dias)</h2><div id="chDevice" class="rank"></div></div>
+  </section>
+
+  <section class="grid2">
+    <div class="card"><h2>Novos usuários por dia (30 dias)</h2><div id="chGrowthU"></div></div>
+    <div class="card"><h2>Buscas por dia (30 dias)</h2><div id="chGrowthS"></div></div>
+  </section>
+
+  <section class="grid3">
+    <div class="card">
+      <h2>Tendências <span class="no-print" style="float:right">
+        <button class="btn-sm btn tag" data-p="h24">24h</button>
+        <button class="btn-sm btn tag" data-p="d7">semana</button>
+        <button class="btn-sm btn tag" data-p="d30">mês</button></span></h2>
+      <div id="chQueries" class="rank"></div>
+    </div>
+    <div class="card"><h2>Filmes mais abertos (30d)</h2><div id="chMovies" class="rank"></div></div>
+    <div class="card"><h2>Séries mais abertas (30d)</h2><div id="chTv" class="rank"></div></div>
+  </section>
+
+  <section class="card">
+    <h2>Ranking por categoria (30 dias)</h2>
+    <div id="chGenre" class="rank"></div>
+  </section>
+
+  <section class="card" id="usersSec">
+    <div class="toolbar" style="margin-bottom:var(--md)">
+      <h2 style="margin:0">Usuários</h2>
+      <input id="uSearch" placeholder="Buscar por nome ou email…" />
+      <button class="btn btn-ghost btn-sm" id="uCsv">Exportar CSV</button>
+    </div>
+    <div class="tbl-wrap"><table id="uTable"></table></div>
+  </section>
+
+  <section class="card">
+    <div class="toolbar" style="margin-bottom:var(--md)">
+      <h2 style="margin:0">Histórico de pesquisas (últimas 50)</h2>
+      <button class="btn btn-ghost btn-sm" id="sCsv">Exportar CSV</button>
+    </div>
+    <div class="tbl-wrap"><table id="sTable"></table></div>
+  </section>
+
+  <section class="card">
+    <div class="toolbar" style="margin-bottom:var(--md)">
+      <h2 style="margin:0">Auditoria administrativa</h2>
+      <button class="btn btn-ghost btn-sm" id="aCsv">Exportar CSV</button>
+    </div>
+    <div class="tbl-wrap"><table id="aTable"></table></div>
+  </section>
+
+  <section class="card no-print" id="mfaSec">
+    <h2>Segurança da sua conta</h2>
+    <div id="mfaStatus" class="muted" style="margin-bottom:var(--md)"></div>
+    <div id="mfaEnroll"></div>
+  </section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+/* ═══ CINE Admin — painel administrativo ═══
+   Toda autorização real acontece no servidor (RPCs checam is_admin();
+   RLS nas tabelas). Esta página é só a casca visual. */
+
+const SUPA = {
+  URL: 'https://oorctratoispjmnwilyo.supabase.co',
+  KEY: 'sb_publishable_JHa1ACM3fZJOQ74-kxgvMA_8drrtbbI',
+};
+const sb = window.supabase.createClient(SUPA.URL, SUPA.KEY);
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+const fmtD = iso => iso ? new Date(iso).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit' }) : '—';
+
+let dash = null, users = [], audit = [];
+
+/* ─── login + MFA ─── */
+async function afterAuth() {
+  // MFA: se a conta tem fator verificado, exige o código (aal2)
+  try {
+    const { data: aal } = await sb.auth.mfa.getAuthenticatorAssuranceLevel();
+    if (aal && aal.nextLevel === 'aal2' && aal.currentLevel !== 'aal2') {
+      $('#loginStep').style.display = 'none';
+      $('#mfaStep').style.display = '';
+      $('#mfaCode').focus();
+      return;
+    }
+  } catch { /* sem MFA legível na sessão: o is_admin() do servidor decide */ }
+  const { data: ok, error } = await sb.rpc('is_admin');
+  if (error || !ok) {
+    await sb.auth.signOut();
+    $('#loginStep').style.display = '';
+    $('#mfaStep').style.display = 'none';
+    $('#loginErr').textContent = 'Esta conta não tem acesso de administrador.';
+    return;
+  }
+  enter();
+}
+
+$('#loginBtn').onclick = async () => {
+  const btn = $('#loginBtn'); $('#loginErr').textContent = '';
+  btn.innerHTML = '<div class="spin"></div>'; btn.disabled = true;
+  const { error } = await sb.auth.signInWithPassword({ email: $('#email').value.trim(), password: $('#pass').value });
+  btn.textContent = 'Entrar'; btn.disabled = false;
+  if (error) { $('#loginErr').textContent = 'Email ou senha incorretos.'; return; }
+  afterAuth();
+};
+$('#pass').addEventListener('keydown', e => { if (e.key === 'Enter') $('#loginBtn').click(); });
+
+$('#mfaBtn').onclick = async () => {
+  $('#mfaErr').textContent = '';
+  const { data: f } = await sb.auth.mfa.listFactors();
+  const totp = f?.totp?.[0];
+  if (!totp) { $('#mfaErr').textContent = 'Nenhum fator encontrado.'; return; }
+  const { error } = await sb.auth.mfa.challengeAndVerify({ factorId: totp.id, code: $('#mfaCode').value.trim() });
+  if (error) { $('#mfaErr').textContent = 'Código inválido. Tente de novo.'; return; }
+  afterAuth();
+};
+$('#mfaCode').addEventListener('keydown', e => { if (e.key === 'Enter') $('#mfaBtn').click(); });
+
+$('#logoutBtn').onclick = async () => { await sb.auth.signOut(); location.reload(); };
+$('#printBtn').onclick = () => window.print();
+
+/* Logout automático por inatividade (15 min) */
+let idleT;
+function armIdle() {
+  clearTimeout(idleT);
+  idleT = setTimeout(async () => { await sb.auth.signOut(); location.reload(); }, 15 * 60_000);
+}
+['pointerdown', 'keydown', 'scroll'].forEach(ev => addEventListener(ev, armIdle, { passive: true }));
+
+/* ─── entrada + auto-refresh ─── */
+let refreshT, countdownT;
+async function enter() {
+  $('#gate').style.display = 'none';
+  $('#topbar').style.display = '';
+  $('#panel').style.display = '';
+  armIdle();
+  await refreshAll();
+  clearInterval(refreshT);
+  refreshT = setInterval(refreshAll, 30_000);
+  let s = 30;
+  clearInterval(countdownT);
+  countdownT = setInterval(() => { s = s <= 1 ? 30 : s - 1; $('#refreshInfo').textContent = `atualiza em ${s}s`; }, 1000);
+  renderMfaSection();
+}
+
+async function refreshAll() {
+  const [d, u, a] = await Promise.all([
+    sb.rpc('admin_dashboard'),
+    sb.rpc('admin_users', { p_search: $('#uSearch').value.trim() || null }),
+    sb.rpc('admin_audit_log'),
+  ]);
+  if (d.error) { console.error(d.error); return; }
+  dash = d.data; users = u.data || []; audit = a.data || [];
+  renderTiles(); renderCharts(); renderUsers(); renderSearches(); renderAudit();
+}
+
+/* ─── visão geral ─── */
+function tile(v, l, live) {
+  return `<div class="tile${live ? ' live' : ''}"><div class="v">${v}</div><div class="l">${l}</div></div>`;
+}
+function renderTiles() {
+  const u = dash.users, s = dash.searches;
+  $('#tiles').innerHTML =
+    tile(u.total, 'usuários cadastrados') +
+    tile(u.online, 'online agora', true) +
+    tile(u.active_7d, 'ativos na semana') +
+    tile(u.new_7d, 'novos na semana') +
+    tile(u.blocked, 'bloqueados') +
+    tile(s.today, 'buscas hoje') +
+    tile(s.total, 'buscas no total') +
+    tile(dash.accesses_total, 'acessos no total');
+}
+
+/* ─── gráficos SVG (série única, sem dependências) ─── */
+function barChart(pairs, { w = 520, h = 160, xLabel } = {}) {
+  if (!pairs.length) return '<p class="muted">Sem dados ainda.</p>';
+  const max = Math.max(...pairs.map(p => p[1]), 1);
+  const pad = 24, bw = (w - pad * 2) / pairs.length;
+  const maxIdx = pairs.findIndex(p => p[1] === max);
+  let bars = '', labels = '';
+  pairs.forEach(([x, v], i) => {
+    const bh = Math.round((h - 34) * v / max);
+    const X = pad + i * bw, Y = h - 22 - bh;
+    bars += `<rect class="bar" x="${X + 1}" y="${Y}" width="${Math.max(bw - 2, 2)}" height="${Math.max(bh, 1)}" rx="2"><title>${esc(xLabel ? xLabel(x) : x)}: ${v}</title></rect>`;
+    if (i === maxIdx && v > 0) labels += `<text class="val" x="${X + bw / 2}" y="${Y - 4}" text-anchor="middle">${v}</text>`;
+    if (pairs.length <= 31 && i % Math.ceil(pairs.length / 8) === 0)
+      labels += `<text class="axis" x="${X + bw / 2}" y="${h - 8}" text-anchor="middle">${esc(String(x))}</text>`;
+  });
+  return `<svg viewBox="0 0 ${w} ${h}" style="width:100%;height:auto" role="img">
+    <line class="gridline" x1="${pad}" x2="${w - pad}" y1="${h - 22}" y2="${h - 22}" stroke-width="1"/>
+    ${bars}${labels}</svg>`;
+}
+
+function lineChart(pairs, { w = 520, h = 160 } = {}) {
+  if (!pairs.length) return '<p class="muted">Sem dados ainda.</p>';
+  const max = Math.max(...pairs.map(p => p[1]), 1);
+  const pad = 24;
+  const step = pairs.length > 1 ? (w - pad * 2) / (pairs.length - 1) : 0;
+  const Y = v => h - 22 - (h - 40) * v / max;
+  const pts = pairs.map(([, v], i) => `${pad + i * step},${Y(v)}`).join(' ');
+  const last = pairs[pairs.length - 1];
+  let dots = pairs.map(([x, v], i) =>
+    `<circle cx="${pad + i * step}" cy="${Y(v)}" r="7" fill="transparent"><title>${esc(String(x))}: ${v}</title></circle>`).join('');
+  return `<svg viewBox="0 0 ${w} ${h}" style="width:100%;height:auto" role="img">
+    <line class="gridline" x1="${pad}" x2="${w - pad}" y1="${h - 22}" y2="${h - 22}" stroke-width="1"/>
+    <polyline points="${pts}" fill="none" stroke="var(--data)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+    ${dots}
+    <circle cx="${pad + (pairs.length - 1) * step}" cy="${Y(last[1])}" r="3.5" fill="var(--data)"/>
+    <text class="val" x="${pad + (pairs.length - 1) * step}" y="${Y(last[1]) - 8}" text-anchor="end">${last[1]}</text>
+    <text class="axis" x="${pad}" y="${h - 8}">${esc(String(pairs[0][0]))}</text>
+    <text class="axis" x="${w - pad}" y="${h - 8}" text-anchor="end">${esc(String(last[0]))}</text>
+  </svg>`;
+}
+
+function rankList(node, rows, nameKey, nKey) {
+  if (!rows.length) { node.innerHTML = '<p class="muted">Sem dados ainda.</p>'; return; }
+  const max = Math.max(...rows.map(r => r[nKey]), 1);
+  node.innerHTML = rows.map((r, i) => `
+    <div class="row">
+      <span class="n">${i + 1}</span>
+      <span class="name" title="${esc(r[nameKey])}">${esc(r[nameKey])}</span>
+      <span class="track"><span class="fill" style="width:${Math.round(100 * r[nKey] / max)}%"></span></span>
+      <span class="cnt">${r[nKey]}</span>
+    </div>`).join('');
+}
+
+let trendPeriod = 'h24';
+document.querySelectorAll('[data-p]').forEach(b => b.onclick = () => { trendPeriod = b.dataset.p; renderCharts(); });
+
+function renderCharts() {
+  const hours = Array.from({ length: 24 }, (_, h) => [h, 0]);
+  (dash.by_hour || []).forEach(({ h, n }) => { hours[h][1] = n; });
+  $('#chHour').innerHTML = barChart(hours, { xLabel: h => `${h}h` });
+
+  const dayFmt = d => new Date(d + 'T12:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+  $('#chGrowthU').innerHTML = lineChart((dash.growth_users || []).map(g => [dayFmt(g.d), g.n]));
+  $('#chGrowthS').innerHTML = lineChart((dash.growth_searches || []).map(g => [dayFmt(g.d), g.n]));
+
+  rankList($('#chDevice'), dash.by_device || [], 'device', 'n');
+  rankList($('#chQueries'), dash.top_queries?.[trendPeriod] || [], 'query', 'n');
+  rankList($('#chMovies'), dash.top_movies || [], 'title_name', 'n');
+  rankList($('#chTv'), dash.top_tv || [], 'title_name', 'n');
+  rankList($('#chGenre'), dash.by_genre || [], 'genre', 'n');
+}
+
+/* ─── usuários ─── */
+function renderUsers() {
+  const head = `<tr><th>Nome</th><th>Email</th><th>Papel</th><th>Status</th><th>Cadastro</th><th>Último acesso</th><th>Buscas</th><th>Categoria top</th><th>Sessão média</th><th></th></tr>`;
+  $('#uTable').innerHTML = head + users.map(u => `
+    <tr data-id="${u.id}">
+      <td>${esc(u.name) || '—'}</td>
+      <td>${esc(u.email)}</td>
+      <td><span class="tag ${u.role === 'admin' ? 'admin' : ''}">${u.role}</span></td>
+      <td>${u.blocked ? '<span class="tag blocked">bloqueado</span>' : (u.verified ? '<span class="tag ok">ativo</span>' : '<span class="tag">não verificado</span>')}</td>
+      <td>${fmtD(u.created_at)}</td>
+      <td>${fmtD(u.last_seen_at)}</td>
+      <td>${u.searches}</td>
+      <td>${esc(u.top_genre) || '—'}</td>
+      <td>${u.avg_session_min ? u.avg_session_min + ' min' : '—'}</td>
+      <td style="display:flex;gap:6px">
+        <button class="btn btn-ghost btn-sm" data-act="${u.blocked ? 'unblock' : 'block'}">${u.blocked ? 'Desbloquear' : 'Bloquear'}</button>
+        <button class="btn btn-ghost btn-sm" data-act="role">${u.role === 'admin' ? 'Rebaixar' : 'Promover'}</button>
+        <button class="btn btn-ghost btn-sm" data-act="rename">Renomear</button>
+        <button class="btn btn-ghost btn-sm btn-danger" data-act="delete">Excluir</button>
+      </td>
+    </tr>`).join('');
+
+  $('#uTable').querySelectorAll('button[data-act]').forEach(b => b.onclick = async () => {
+    const tr = b.closest('tr'), id = tr.dataset.id, u = users.find(x => x.id === id);
+    const act = b.dataset.act;
+    let action = act, value = null;
+    if (act === 'role') { action = 'set_role'; value = u.role === 'admin' ? 'user' : 'admin'; }
+    if (act === 'rename') {
+      value = prompt(`Novo nome para ${u.email}:`, u.name);
+      if (value === null) return;
+      action = 'set_name';
+    }
+    if (act === 'delete' && !confirm(`Excluir DEFINITIVAMENTE a conta ${u.email}? Isso apaga favoritos e histórico.`)) return;
+    if (act === 'block' && !confirm(`Bloquear ${u.email}? A pessoa perde o acesso na hora.`)) return;
+    b.innerHTML = '<div class="spin"></div>';
+    const { error } = await sb.rpc('admin_user_action', { p_target: id, p_action: action, p_value: value });
+    if (error) alert('Não deu: ' + error.message);
+    refreshAll();
+  });
+}
+let uSearchT;
+$('#uSearch').oninput = () => { clearTimeout(uSearchT); uSearchT = setTimeout(refreshAll, 400); };
+
+/* ─── históricos ─── */
+function renderSearches() {
+  const rows = dash.recent_searches || [];
+  $('#sTable').innerHTML = `<tr><th>Busca</th><th>Usuário</th><th>Dispositivo</th><th>Quando</th></tr>` +
+    rows.map(r => `<tr><td>${esc(r.query)}</td><td>${esc(r.email) || '—'}</td><td>${esc(r.device) || '—'}</td><td>${fmtD(r.created_at)}</td></tr>`).join('');
+}
+function renderAudit() {
+  $('#aTable').innerHTML = `<tr><th>Admin</th><th>Ação</th><th>Alvo</th><th>Valor</th><th>Quando</th></tr>` +
+    (audit.length ? audit.map(r => `<tr><td>${esc(r.actor_email)}</td><td>${esc(r.action)}</td><td>${esc(r.target_email)}</td><td>${esc(r.value) || '—'}</td><td>${fmtD(r.created_at)}</td></tr>`).join('')
+      : '<tr><td colspan="5" class="muted">Nenhuma ação registrada ainda.</td></tr>');
+}
+
+/* ─── exportações CSV ─── */
+function csv(rows, cols, fname) {
+  const head = cols.map(c => c[0]).join(';');
+  const body = rows.map(r => cols.map(c => `"${String(r[c[1]] ?? '').replace(/"/g, '""')}"`).join(';')).join('\n');
+  const blob = new Blob(['﻿' + head + '\n' + body], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = fname;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+$('#uCsv').onclick = () => csv(users, [['Nome','name'],['Email','email'],['Papel','role'],['Bloqueado','blocked'],['Cadastro','created_at'],['Último acesso','last_seen_at'],['Buscas','searches'],['Categoria top','top_genre'],['Sessão média (min)','avg_session_min']], 'cine-usuarios.csv');
+$('#sCsv').onclick = () => csv(dash?.recent_searches || [], [['Busca','query'],['Usuário','email'],['Dispositivo','device'],['Quando','created_at']], 'cine-buscas.csv');
+$('#aCsv').onclick = () => csv(audit, [['Admin','actor_email'],['Ação','action'],['Alvo','target_email'],['Valor','value'],['Quando','created_at']], 'cine-auditoria.csv');
+
+/* ─── MFA: cadastro do autenticador ─── */
+async function renderMfaSection() {
+  const { data: f } = await sb.auth.mfa.listFactors();
+  const has = (f?.totp || []).some(x => x.status === 'verified');
+  if (has) {
+    $('#mfaStatus').textContent = 'Autenticação em duas etapas ATIVA. O painel exige o código do app a cada login.';
+    $('#mfaEnroll').innerHTML = '';
+    return;
+  }
+  $('#mfaStatus').textContent = 'Sua conta ainda não tem autenticação em duas etapas (MFA).';
+  $('#mfaEnroll').innerHTML = `<button class="btn btn-primary" id="mfaStart">Ativar MFA (TOTP)</button>`;
+  $('#mfaStart').onclick = async () => {
+    const { data, error } = await sb.auth.mfa.enroll({ factorType: 'totp' });
+    if (error) { alert('Não deu: ' + error.message); return; }
+    $('#mfaEnroll').innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:var(--md)">
+        <p class="muted">1. Escaneie no Google Authenticator / 1Password / Authy:</p>
+        <div class="qr-box">${data.totp.qr_code}</div>
+        <p class="muted">2. Digite o código de 6 dígitos:</p>
+        <div style="display:flex;gap:var(--md)">
+          <input id="enrollCode" inputmode="numeric" maxlength="6" placeholder="000000"
+            style="height:44px;padding:0 var(--md);background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-md);color:var(--text-primary);font-size:18px;letter-spacing:6px;text-align:center;width:160px" />
+          <button class="btn btn-primary" id="enrollBtn">Confirmar</button>
+        </div>
+        <div class="err" id="enrollErr"></div>
+      </div>`;
+    $('#enrollBtn').onclick = async () => {
+      const { error: e2 } = await sb.auth.mfa.challengeAndVerify({ factorId: data.id, code: $('#enrollCode').value.trim() });
+      if (e2) { $('#enrollErr').textContent = 'Código inválido.'; return; }
+      renderMfaSection();
+    };
+  };
+}
+
+/* ─── boot ─── */
+(async () => {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) afterAuth();
+  else $('#email').focus();
+})();
+</script>
+</html>

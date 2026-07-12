@@ -1,71 +1,53 @@
 # CINE
 
-Catálogo de filmes e séries sobre a API do TMDB. Front-end estático, sem build. O token da API vive num Cloudflare Worker, nunca no navegador.
+Catálogo de filmes e séries sobre a API do TMDB. Front-end estático, sem build, com conta de usuário (Supabase Auth), proxy autenticado no servidor e painel administrativo. O token da TMDB vive no Vault do Supabase — nunca no navegador, nunca no repositório.
 
-**Demo:** [cine-flow-sable.vercel.app](https://cine-flow-sable.vercel.app)
+**Demo:** [cine-flow-sable.vercel.app](https://cine-flow-sable.vercel.app) · **Painel admin:** [/admin](https://cine-flow-sable.vercel.app/admin)
 
 ---
 
 ## O que tem aqui
 
 ```
-index.html            App inteiro: UI, camadas de dados, estado. Zero dependências.
-tmdb-proxy/           Cloudflare Worker que injeta o token da TMDB e cacheia na borda.
-docs/arquitetura.md   Documento de arquitetura + design system.
+index.html                       App inteiro: UI, camadas de dados, estado. Zero dependências.
+admin.html                       Painel administrativo (métricas, usuários, auditoria, MFA).
+supabase/functions/tmdb-proxy/   Edge Function: proxy TMDB com allowlist, rate limit por
+                                 usuário e bloqueio de contas. Token no Vault do Supabase.
+tmdb-proxy/                      Alternativa: Cloudflare Worker com a mesma allowlist.
+docs/arquitetura.md              Documento de arquitetura + design system.
 ```
+
+## Como funciona
+
+1. A pessoa **cria a conta** (nome, email, senha) e **confirma o email** pelo link.
+2. Ao entrar, o app fala com a Edge Function `tmdb-proxy` autenticada com a própria sessão —
+   ninguém precisa de chave da TMDB. A tela de conexão só aparece como fallback.
+3. Buscas, aberturas de título e sessões geram eventos (tabela `events`, protegida por RLS)
+   que alimentam o painel `/admin` — restrito a contas com papel `admin` no servidor.
 
 ## Rodar local
 
 ```bash
-npx serve .          # ou: python3 -m http.server 8000
+python3 -m http.server 8000    # ou: npx serve .
 ```
 
-Abra `http://localhost:3000` e cole sua chave da TMDB na tela de conexão. Para desenvolvimento, a chave direta funciona — ela fica no `localStorage`.
+Abra `http://localhost:8000`, crie uma conta e use normalmente (o proxy integrado aceita
+localhost nas origens). Sem internet ou sem Supabase, a tela de conexão aceita uma chave
+TMDB direta — ela fica no `localStorage`.
 
-## Publicar
+## Backend (Supabase)
 
-Dois deploys independentes. **O Worker vem primeiro**, porque o site vai apontar pra ele.
+Já provisionado no projeto `cineflow` (região São Paulo). Para recriar do zero:
 
-### 1. Worker (o proxy)
+1. **Migrações**: o schema está no histórico de migrações do projeto (profiles, events,
+   favorites, admin_audit, RPCs `admin_*`, RLS em todas as tabelas).
+2. **Token da TMDB no Vault**: `select vault.create_secret('SEU_TOKEN_V4', 'TMDB_TOKEN');`
+3. **Edge Function**: `supabase functions deploy tmdb-proxy` (verify_jwt ligado).
+4. **Site URL** em Authentication → URL Configuration: o domínio do site (para o link
+   de confirmação de email redirecionar certo).
 
-```bash
-cd tmdb-proxy
-npx wrangler login
-npx wrangler secret put TMDB_TOKEN     # token de leitura v4 (começa com "eyJ")
-npx wrangler deploy
-```
-
-Anote a URL: `https://tmdb-proxy.SEU-SUB.workers.dev`
-
-### 2. Site (Cloudflare Pages)
-
-No dashboard da Cloudflare → **Workers & Pages → Create → Pages → Connect to Git**, aponte pra este repositório:
-
-| Campo | Valor |
-|---|---|
-| Framework preset | None |
-| Build command | *(vazio)* |
-| Build output directory | `/` |
-
-Todo push na `main` republica sozinho.
-
-> Alternativa: **GitHub Pages** (Settings → Pages → Deploy from branch → `main` / `root`). Funciona igual, é estático.
-
-### 3. Fechar o CORS
-
-Com o domínio do site em mãos, edite `tmdb-proxy/worker.js`:
-
-```js
-const ORIGINS = ['https://cine.pages.dev'];   // ← seu domínio, não '*'
-```
-
-E rode `npx wrangler deploy` de novo.
-
-Com `'*'`, qualquer site do mundo pode consumir seu Worker e queimar sua cota da TMDB. Essa é a única linha que separa o app de teste do app publicado.
-
-### 4. Ligar
-
-Abra o site e, na tela de conexão, **cole a URL do Worker** em vez da chave. O app detecta que é uma URL e entra em modo proxy — nenhuma credencial sai do navegador.
+O papel `admin` nasce automático para os emails do dono (trigger `handle_new_user`);
+outros admins são promovidos pelo próprio painel.
 
 ---
 
@@ -76,8 +58,6 @@ O app tem registro/login (nome, email e senha) via **Supabase Auth**. O fluxo:
 1. **Criar conta** → o Supabase envia um link de verificação para o email.
 2. O usuário clica no link → o email é confirmado e ele volta para o site já logado.
 3. Sem confirmar, o login é bloqueado (o app reabre o painel "Confirme seu email", com reenvio).
-
-A conta e a credencial do TMDB são independentes: primeiro entra na conta, depois conecta o TMDB.
 
 **Configuração única no painel do Supabase** (Authentication → URL Configuration):
 
@@ -93,15 +73,36 @@ Sem isso, o link do email confirma a conta mas redireciona para `localhost:3000`
 
 ---
 
-## Segurança: o que é e o que não é
+## Painel administrativo (`/admin`)
 
-| | Chave direta | Proxy |
-|---|---|---|
-| Onde o token vive | `localStorage` do usuário | Secret do Worker |
-| Quem pode ler | Qualquer um com DevTools | Ninguém |
-| Uso | Dev local | Produção |
+Página separada, mesma conta Supabase — mas **só entra quem tem papel `admin`**, e a
+checagem acontece no servidor (`is_admin()` dentro de cada RPC + RLS). O painel tem:
 
-O app aceita os dois. A tela de conexão decide pelo formato do que você colar: começa com `http` → proxy; senão → chave.
+- **Visão geral em quase tempo real** (atualiza a cada 30s): usuários totais/ativos/online/
+  bloqueados, buscas hoje/total, acessos.
+- **Gráficos**: buscas por horário (Brasília), crescimento de usuários e de buscas (30 dias),
+  dispositivos, tendências 24h/semana/mês, filmes e séries mais abertos, ranking por categoria.
+- **Gestão de usuários**: buscar, bloquear/desbloquear (derruba o acesso na hora, inclusive no
+  proxy), promover/rebaixar admin, renomear, excluir — tudo auditado em `admin_audit`.
+- **Histórico de pesquisas** e **auditoria administrativa**, com exportação **CSV** e **PDF**
+  (imprimir → salvar como PDF).
+- **MFA (TOTP)**: cadastre um app autenticador; depois disso o painel exige o código a cada
+  login (o `is_admin()` do servidor passa a exigir sessão aal2).
+- **Sessão**: logout automático após 15 min de inatividade.
+
+## Segurança
+
+| Camada | O que garante |
+|---|---|
+| Token TMDB | Vault do Supabase; lido só pela Edge Function (service_role) |
+| Proxy | Allowlist de rotas e parâmetros, rate limit por usuário (120/min), CORS restrito, exige login |
+| Banco | RLS em todas as tabelas; usuário só lê/escreve o que é dele |
+| Admin | RPCs `security definer` com `is_admin()` no servidor; MFA opcional; auditoria completa |
+| Site | CSP, X-Frame-Options DENY, nosniff, Referrer-Policy (via `vercel.json`) |
+| Front | Nenhum segredo no bundle; chave publishable do Supabase é pública por design |
+
+A tela de conexão antiga continua como fallback: cole uma chave TMDB própria (fica no
+`localStorage`, bom pra dev) ou a URL de um Worker seu (`tmdb-proxy/`).
 
 ---
 
@@ -110,6 +111,7 @@ O app aceita os dois. A tela de conexão decide pelo formato do que você colar:
 - [ ] Deep links (`#/movie/603`) — hoje o botão voltar do Android fecha o app em vez do modal
 - [ ] PWA: manifest + service worker (instalar no celular, cache offline real)
 - [ ] Página `/sobre` com a atribuição obrigatória do TMDB
+- [ ] Notificações push (lançamentos da minha lista)
 - [ ] Migrar para React Native (a arquitetura em `docs/arquitetura.md` já está desenhada pra isso)
 
 ---
