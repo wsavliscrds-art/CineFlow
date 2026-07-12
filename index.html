@@ -2097,6 +2097,10 @@ async function enterApp(user) {
   // Veio do link de confirmação? O supabase-js troca o hash por sessão sozinho.
   const confirmedNow = /type=signup/.test(location.hash);
 
+  // Link de email expirado ou já usado: o Supabase devolve o erro no hash.
+  const hashErr = /error_code=otp_expired|error=access_denied/.test(location.hash);
+  if (hashErr) history.replaceState(null, '', location.pathname);
+
   if (!sb) {
     // CDN de auth indisponível: segue o fluxo antigo (só a chave TMDB).
     const saved = await kv.get('tmdb-key');
@@ -2120,7 +2124,12 @@ async function enterApp(user) {
   const { data: { session } } = await sb.auth.getSession();
   SESSION_TOKEN = session?.access_token || null;
   if (session) enterApp(session.user);
-  else { showAuth(); $('#authEmail').focus(); }
+  else {
+    showAuth();
+    if (hashErr) $('#authErr').textContent =
+      'Esse link de confirmação expirou ou já foi usado. Entre com email e senha — se a conta ainda não estiver confirmada, enviaremos um novo link.';
+    $('#authEmail').focus();
+  }
 })();
 </script>
 </html>
