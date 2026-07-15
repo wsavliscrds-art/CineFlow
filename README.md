@@ -106,6 +106,29 @@ pagamento online entrar.
 > negocie a licença comercial (TMDB for Business) e mantenha a atribuição da JustWatch
 > nos dados de onde assistir.
 
+## Cobrança e financeiro
+
+Infra pronta e **gateway-agnóstica** — Kirvano, Cakto, InfinitePay ou outro entram só com
+configuração, sem mudar código:
+
+- **Banco**: `billing_plans` (mensal/anual, preços editáveis no painel), `subscriptions`
+  (trial/active/past_due/canceled, renovação e expiração via `pg_cron`), `payments`
+  (pix/cartão/boleto, aprovado/pendente/recusado/reembolsado/chargeback), `coupons`,
+  `billing_settings`. O plano do perfil sincroniza sozinho com o status da assinatura
+  (trigger) — free/premium nunca desalinham do financeiro.
+- **Webhook**: `supabase/functions/billing-webhook` — normaliza payloads (formato genérico
+  + campos comuns de Kirvano/Cakto), autentica por `x-webhook-secret` (Vault:
+  `BILLING_WEBHOOK_SECRET`). Aprovou → ativa/renova; reembolso/chargeback → cancela na hora.
+- **Admin → Financeiro**: receita dia/semana/mês/ano/total com comparativo, MRR, ARR, ARPU,
+  conversão, assinaturas ativas/canceladas, gráficos 30d, pagamentos com busca/filtros/CSV
+  e reembolso em 1 clique (auditado), cupons, configurações (gateway, trial, preços).
+- **Usuário**: preços reais no popup do Premium, "Meus pagamentos" com recibo imprimível,
+  cancelamento de assinatura (vale até o fim do período pago).
+
+Configuração no gateway: aponte o webhook de vendas para
+`https://<projeto>.supabase.co/functions/v1/billing-webhook` com o header
+`x-webhook-secret`, e o produto/oferta com "mensal" ou "anual" no nome.
+
 ## Painel administrativo (`/admin`)
 
 Página separada, mesma conta Supabase — mas **só entra quem tem papel `admin`**, e a

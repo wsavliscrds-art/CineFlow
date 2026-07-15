@@ -217,6 +217,79 @@
     <div class="tbl-wrap"><table id="aTable"></table></div>
   </section>
 
+  <!-- ═══ FINANCEIRO ═══ -->
+  <section id="finSec">
+    <h1 style="margin-bottom:var(--lg)">Financeiro</h1>
+    <div class="tiles" id="finTiles"></div>
+  </section>
+
+  <section class="grid2">
+    <div class="card"><h2>Receita por dia — R$ (30 dias)</h2><div id="finRevChart"></div></div>
+    <div class="card"><h2>Novas assinaturas por dia (30 dias)</h2><div id="finSubsChart"></div></div>
+  </section>
+
+  <section class="card">
+    <div class="toolbar" style="margin-bottom:var(--md)">
+      <h2 style="margin:0">Pagamentos</h2>
+      <input id="pSearch" placeholder="Usuário, transação ou nº…" style="min-width:200px" />
+      <select id="pStatus" class="btn btn-ghost btn-sm" style="height:38px">
+        <option value="">Todos os status</option>
+        <option value="approved">Aprovados</option>
+        <option value="pending">Pendentes</option>
+        <option value="refused">Recusados</option>
+        <option value="refunded">Reembolsados</option>
+        <option value="chargeback">Chargeback</option>
+      </select>
+      <input id="pFrom" type="date" class="btn btn-ghost btn-sm" style="height:38px" />
+      <input id="pTo" type="date" class="btn btn-ghost btn-sm" style="height:38px" />
+      <button class="btn btn-ghost btn-sm" id="pCsv">Exportar CSV</button>
+    </div>
+    <div class="tbl-wrap"><table id="payTable"></table></div>
+  </section>
+
+  <section class="grid2">
+    <div class="card">
+      <h2>Cupons de desconto</h2>
+      <div class="toolbar" style="margin-bottom:var(--md)">
+        <input id="cCode" placeholder="CODIGO10" style="min-width:120px;text-transform:uppercase" />
+        <input id="cPct" type="number" min="1" max="100" placeholder="%" style="min-width:70px;width:70px" />
+        <input id="cUntil" type="date" class="btn btn-ghost btn-sm" style="height:38px" />
+        <input id="cMax" type="number" min="1" placeholder="usos máx." style="min-width:90px;width:110px" />
+        <button class="btn btn-primary btn-sm" id="cAdd">Criar</button>
+      </div>
+      <div class="tbl-wrap"><table id="couponTable"></table></div>
+    </div>
+    <div class="card">
+      <h2>Configurações de cobrança</h2>
+      <div style="display:flex;flex-direction:column;gap:var(--md)" id="finCfg">
+        <label class="muted">Gateway ativo
+          <select id="cfgGateway" class="btn btn-ghost btn-sm" style="height:38px;width:100%;margin-top:4px">
+            <option value="manual">Manual (ativação pelo painel)</option>
+            <option value="kirvano">Kirvano</option>
+            <option value="cakto">Cakto</option>
+            <option value="infinitepay">InfinitePay</option>
+            <option value="kast">Kast</option>
+          </select>
+        </label>
+        <label class="muted">Dias de teste grátis
+          <input id="cfgTrial" type="number" min="0" max="90" class="btn btn-ghost btn-sm" style="height:38px;width:100%;margin-top:4px" />
+        </label>
+        <label class="muted" style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="cfgRenew" /> Renovação automática</label>
+        <label class="muted" style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="cfgEmails" /> Notificações de cobrança por email</label>
+        <div class="muted" style="display:flex;flex-direction:column;gap:6px">
+          Preços dos planos (R$)
+          <div style="display:flex;gap:var(--md)">
+            <input id="cfgPMensal" type="number" step="0.01" min="0" class="btn btn-ghost btn-sm" style="height:38px;flex:1" />
+            <input id="cfgPAnual" type="number" step="0.01" min="0" class="btn btn-ghost btn-sm" style="height:38px;flex:1" />
+          </div>
+        </div>
+        <button class="btn btn-primary" id="cfgSave">Salvar configurações</button>
+        <p class="muted">Webhook do gateway: <code style="user-select:all">https://oorctratoispjmnwilyo.supabase.co/functions/v1/billing-webhook</code><br/>
+        Header obrigatório: <code>x-webhook-secret</code> (segredo no Vault → <code>BILLING_WEBHOOK_SECRET</code>).</p>
+      </div>
+    </div>
+  </section>
+
   <section class="card no-print" id="mfaSec">
     <h2>Segurança da sua conta</h2>
     <div id="mfaStatus" class="muted" style="margin-bottom:var(--md)"></div>
@@ -239,7 +312,8 @@ const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
 const fmtD = iso => iso ? new Date(iso).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit' }) : '—';
 
-let dash = null, users = [], audit = [];
+let dash = null, users = [], audit = [], fin = null, payments = [], coupons = [];
+const money = c => 'R$ ' + ((c || 0) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
 
 /* ─── login + MFA ─── */
 async function afterAuth() {
@@ -313,14 +387,18 @@ async function enter() {
 }
 
 async function refreshAll() {
-  const [d, u, a] = await Promise.all([
+  const [d, u, a, f] = await Promise.all([
     sb.rpc('admin_dashboard'),
     sb.rpc('admin_users', { p_search: $('#uSearch').value.trim() || null }),
     sb.rpc('admin_audit_log'),
+    sb.rpc('admin_finance'),
   ]);
   if (d.error) { console.error(d.error); return; }
-  dash = d.data; users = u.data || []; audit = a.data || [];
+  dash = d.data; users = u.data || []; audit = a.data || []; fin = f.data;
   renderTiles(); renderCharts(); renderUsers(); renderSearches(); renderAudit();
+  if (fin) renderFinance();
+  refreshPayments(); refreshCoupons();
+  if (!refreshAll.cfgLoaded) { refreshAll.cfgLoaded = true; loadConfig(); }
 }
 
 /* ─── visão geral ─── */
@@ -485,6 +563,130 @@ function csv(rows, cols, fname) {
 $('#uCsv').onclick = () => csv(users, [['Nome','name'],['Email','email'],['Papel','role'],['Plano','plan'],['Bloqueado','blocked'],['Cadastro','created_at'],['Último acesso','last_seen_at'],['Buscas','searches'],['Categoria top','top_genre'],['Sessão média (min)','avg_session_min']], 'cine-usuarios.csv');
 $('#sCsv').onclick = () => csv(dash?.recent_searches || [], [['Busca','query'],['Usuário','email'],['Dispositivo','device'],['Quando','created_at']], 'cine-buscas.csv');
 $('#aCsv').onclick = () => csv(audit, [['Admin','actor_email'],['Ação','action'],['Alvo','target_email'],['Valor','value'],['Quando','created_at']], 'cine-auditoria.csv');
+
+/* ─── financeiro ─── */
+function renderFinance() {
+  const r = fin.revenue, s = fin.subs;
+  const delta = r.prev_month > 0 ? Math.round(100 * (r.month - r.prev_month) / r.prev_month) : null;
+  $('#finTiles').innerHTML =
+    tile(money(r.today), 'receita hoje') +
+    tile(money(r.week), 'receita na semana') +
+    tile(money(r.month), `receita no mês${delta !== null ? ` (${delta >= 0 ? '+' : ''}${delta}% vs anterior)` : ''}`) +
+    tile(money(r.year), 'receita no ano') +
+    tile(money(r.total), 'receita total') +
+    tile(money(fin.mrr), 'MRR (recorrente mensal)') +
+    tile(money(fin.mrr * 12), 'ARR (recorrente anual)') +
+    tile(money(fin.arpu), 'ARPU (30 dias)') +
+    tile(s.active, 'assinaturas ativas', true) +
+    tile(s.canceled, 'canceladas') +
+    tile(fin.conversion_pct + '%', 'conversão para premium') +
+    tile(money(fin.refunded_total), 'reembolsado/chargeback');
+
+  const dayFmt = d => new Date(d + 'T12:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+  $('#finRevChart').innerHTML = barChart((fin.revenue_by_day || []).map(g => [dayFmt(g.d), Math.round(g.n / 100)]), {});
+  $('#finSubsChart').innerHTML = lineChart((fin.subs_by_day || []).map(g => [dayFmt(g.d), g.n]));
+}
+
+async function refreshPayments() {
+  const from = $('#pFrom').value ? new Date($('#pFrom').value + 'T00:00:00').toISOString() : null;
+  const to = $('#pTo').value ? new Date($('#pTo').value + 'T23:59:59').toISOString() : null;
+  const { data } = await sb.rpc('admin_payments', {
+    p_search: $('#pSearch').value.trim() || null,
+    p_status: $('#pStatus').value || null,
+    p_from: from, p_to: to,
+  });
+  payments = data || [];
+  const tag = st => ({ approved: 'ok', pending: '', refused: 'blocked', refunded: 'admin', chargeback: 'blocked' }[st] || '');
+  const label = st => ({ approved: 'aprovado', pending: 'pendente', refused: 'recusado', refunded: 'reembolsado', chargeback: 'chargeback' }[st] || st);
+  $('#payTable').innerHTML = `<tr><th>#</th><th>Usuário</th><th>Plano</th><th>Valor</th><th>Método</th><th>Status</th><th>Gateway</th><th>Transação</th><th>Quando</th><th></th></tr>` +
+    (payments.length ? payments.map(p => `
+      <tr>
+        <td>${p.id}</td>
+        <td>${esc(p.email) || '—'}</td>
+        <td>${esc(p.plan_code) || '—'}</td>
+        <td>${money(p.amount_cents)}</td>
+        <td>${esc(p.method) || '—'}</td>
+        <td><span class="tag ${tag(p.status)}">${label(p.status)}</span></td>
+        <td>${esc(p.gateway)}</td>
+        <td>${esc(p.gateway_ref) || '—'}</td>
+        <td>${fmtD(p.paid_at || p.created_at)}</td>
+        <td>${p.status === 'approved' ? `<button class="btn btn-ghost btn-sm btn-danger" data-refund="${p.id}">Reembolsar</button>` : ''}</td>
+      </tr>`).join('') : '<tr><td colspan="10" class="muted">Nenhum pagamento ainda.</td></tr>');
+  $('#payTable').querySelectorAll('[data-refund]').forEach(b => b.onclick = async () => {
+    if (!confirm(`Reembolsar o pagamento #${b.dataset.refund}? A assinatura ligada a ele será cancelada.`)) return;
+    const { error } = await sb.rpc('admin_refund', { p_payment: Number(b.dataset.refund) });
+    if (error) alert('Não deu: ' + error.message);
+    refreshAll();
+  });
+}
+let pT;
+['pSearch', 'pStatus', 'pFrom', 'pTo'].forEach(id =>
+  $('#' + id).addEventListener('input', () => { clearTimeout(pT); pT = setTimeout(refreshPayments, 400); }));
+$('#pCsv').onclick = () => csv(payments, [['Nº','id'],['Usuário','email'],['Plano','plan_code'],['Valor (centavos)','amount_cents'],['Método','method'],['Status','status'],['Gateway','gateway'],['Transação','gateway_ref'],['Quando','created_at']], 'cine-pagamentos.csv');
+
+/* cupons */
+async function refreshCoupons() {
+  const { data } = await sb.from('coupons').select('*').order('code');
+  coupons = data || [];
+  $('#couponTable').innerHTML = `<tr><th>Código</th><th>Desconto</th><th>Usos</th><th>Válido até</th><th>Status</th><th></th></tr>` +
+    (coupons.length ? coupons.map(c => `
+      <tr>
+        <td><b>${esc(c.code)}</b></td>
+        <td>${c.percent_off}%</td>
+        <td>${c.uses}${c.max_uses ? '/' + c.max_uses : ''}</td>
+        <td>${c.valid_until ? fmtD(c.valid_until) : 'sempre'}</td>
+        <td>${c.active ? '<span class="tag ok">ativo</span>' : '<span class="tag">inativo</span>'}</td>
+        <td><button class="btn btn-ghost btn-sm" data-ctoggle="${esc(c.code)}">${c.active ? 'Desativar' : 'Reativar'}</button></td>
+      </tr>`).join('') : '<tr><td colspan="6" class="muted">Nenhum cupom criado.</td></tr>');
+  $('#couponTable').querySelectorAll('[data-ctoggle]').forEach(b => b.onclick = async () => {
+    const c = coupons.find(x => x.code === b.dataset.ctoggle);
+    await sb.from('coupons').update({ active: !c.active }).eq('code', c.code);
+    refreshCoupons();
+  });
+}
+$('#cAdd').onclick = async () => {
+  const code = $('#cCode').value.trim().toUpperCase();
+  const pct = Number($('#cPct').value);
+  if (!code || !pct) { alert('Informe código e percentual.'); return; }
+  const { error } = await sb.from('coupons').insert({
+    code, percent_off: pct,
+    valid_until: $('#cUntil').value ? new Date($('#cUntil').value + 'T23:59:59').toISOString() : null,
+    max_uses: Number($('#cMax').value) || null,
+  });
+  if (error) alert('Não deu: ' + error.message);
+  else { $('#cCode').value = ''; $('#cPct').value = ''; refreshCoupons(); }
+};
+
+/* configurações de cobrança */
+async function loadConfig() {
+  const [{ data: cfg }, { data: plans }] = await Promise.all([
+    sb.from('billing_settings').select('*'),
+    sb.from('billing_plans').select('*'),
+  ]);
+  const map = Object.fromEntries((cfg || []).map(r => [r.key, r.value]));
+  $('#cfgGateway').value = map.gateway ?? 'manual';
+  $('#cfgTrial').value = map.trial_days ?? 0;
+  $('#cfgRenew').checked = map.auto_renew !== false;
+  $('#cfgEmails').checked = map.billing_emails !== false;
+  const pm = (plans || []).find(p => p.code === 'mensal'), pa = (plans || []).find(p => p.code === 'anual');
+  if (pm) $('#cfgPMensal').value = (pm.price_cents / 100).toFixed(2);
+  if (pa) $('#cfgPAnual').value = (pa.price_cents / 100).toFixed(2);
+}
+$('#cfgSave').onclick = async () => {
+  const btn = $('#cfgSave');
+  btn.innerHTML = '<div class="spin"></div>'; btn.disabled = true;
+  const rows = [
+    { key: 'gateway', value: JSON.stringify($('#cfgGateway').value) },
+    { key: 'trial_days', value: String(Number($('#cfgTrial').value) || 0) },
+    { key: 'auto_renew', value: String($('#cfgRenew').checked) },
+    { key: 'billing_emails', value: String($('#cfgEmails').checked) },
+  ].map(r => ({ key: r.key, value: JSON.parse(r.value) }));
+  await sb.from('billing_settings').upsert(rows);
+  await sb.from('billing_plans').update({ price_cents: Math.round(Number($('#cfgPMensal').value) * 100) }).eq('code', 'mensal');
+  await sb.from('billing_plans').update({ price_cents: Math.round(Number($('#cfgPAnual').value) * 100) }).eq('code', 'anual');
+  btn.textContent = 'Salvar configurações'; btn.disabled = false;
+  alert('Configurações salvas.');
+};
 
 /* ─── MFA: cadastro do autenticador ─── */
 async function renderMfaSection() {

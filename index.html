@@ -1727,12 +1727,25 @@ function renderList() {
       catch { prompt('Copie o link do seu perfil:', url); }
     };
     planBox.appendChild(share);
+    planBox.appendChild(el('span', 't-ter', ' · '));
+    const cancel = el('button', 'link-btn', 'Cancelar assinatura');
+    cancel.onclick = async () => {
+      if (!confirm('Cancelar a renovação? Você continua Premium até o fim do período já pago.')) return;
+      const { data, error } = await sb.rpc('cancel_my_subscription');
+      if (error) toast(error.message.includes('nenhuma') ? 'Sua conta Premium foi ativada manualmente — fale com o suporte.' : 'Não foi possível cancelar agora.');
+      else toast(`Renovação cancelada. Premium até ${new Date(data.until).toLocaleDateString('pt-BR')}.`);
+    };
+    planBox.appendChild(cancel);
   } else {
     planBox.innerHTML = `Plano <b>Grátis</b> · ${myList.length}/20 favoritos. `;
     const up = el('button', 'link-btn', 'Conhecer o Premium');
     up.onclick = () => openUpgradePop();
     planBox.appendChild(up);
   }
+  planBox.appendChild(el('span', 't-ter', ' · '));
+  const pays = el('button', 'link-btn', 'Meus pagamentos');
+  pays.onclick = openMyPayments;
+  planBox.appendChild(pays);
   v.appendChild(planBox);
 
   if (!myList.length && !watchedRows.length) {
@@ -1763,6 +1776,64 @@ function renderList() {
     });
     v.appendChild(g2);
   }
+}
+
+/* ─────────────── screens/MyPayments ───────────────
+   Histórico da própria conta (RLS: cada um só vê o seu) + recibo imprimível. */
+async function openMyPayments() {
+  haptic();
+  const { data } = await sb.from('payments').select('*').order('created_at', { ascending: false }).limit(50);
+  const rows = data || [];
+  const pop = $('#pop'), back = $('#popBackdrop');
+  pop.innerHTML = '';
+  const head = el('div', 'pop-head');
+  head.appendChild(el('h2', 'h2', '🧾 Meus pagamentos'));
+  const close = el('button', 'pop-close', ICON.close);
+  close.setAttribute('aria-label', 'Fechar');
+  close.onclick = closePop;
+  head.appendChild(close);
+  pop.appendChild(head);
+
+  const box = el('div');
+  box.style.cssText = 'display:flex;flex-direction:column;gap:var(--sm);padding:0 var(--xl) var(--lg)';
+  if (!rows.length) box.appendChild(el('p', 'caption t-ter', 'Nenhum pagamento por aqui ainda.'));
+  const money = c => 'R$ ' + ((c || 0) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+  const label = { approved: '✅ aprovado', pending: '⏳ pendente', refused: '❌ recusado', refunded: '↩️ reembolsado', chargeback: '⚠️ chargeback' };
+  rows.forEach(p => {
+    const row = el('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:var(--md);font-size:13px;padding:var(--sm) 0;border-bottom:1px solid var(--border)';
+    row.innerHTML = `<span style="flex:1">${new Date(p.created_at).toLocaleDateString('pt-BR')} · ${esc(p.plan_code || 'premium')} · ${esc(p.method || '')}</span>
+      <b>${money(p.amount_cents)}</b><span class="caption t-sec">${label[p.status] || esc(p.status)}</span>`;
+    if (p.status === 'approved') {
+      const r = el('button', 'link-btn', 'Recibo');
+      r.onclick = () => printReceipt(p);
+      row.appendChild(r);
+    }
+    box.appendChild(row);
+  });
+  pop.appendChild(box);
+  back.classList.add('open'); pop.classList.add('open');
+  back.onclick = closePop;
+}
+
+function printReceipt(p) {
+  const money = c => 'R$ ' + ((c || 0) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+  const w = window.open('', '_blank', 'width=420,height=600');
+  if (!w) { toast('Libere popups para gerar o recibo.'); return; }
+  w.document.write(`<!doctype html><html lang="pt-BR"><meta charset="utf-8"><title>Recibo CINE #${p.id}</title>
+    <style>body{font-family:system-ui;margin:32px;color:#111}h1{font-size:20px}table{width:100%;border-collapse:collapse;margin-top:16px}td{padding:6px 0;border-bottom:1px solid #ddd;font-size:14px}td:last-child{text-align:right;font-weight:600}</style>
+    <h1>CINE. — Recibo de pagamento</h1>
+    <table>
+      <tr><td>Recibo nº</td><td>${p.id}</td></tr>
+      <tr><td>Data</td><td>${new Date(p.paid_at || p.created_at).toLocaleString('pt-BR')}</td></tr>
+      <tr><td>Plano</td><td>${p.plan_code === 'anual' ? 'Premium Anual' : 'Premium Mensal'}</td></tr>
+      <tr><td>Método</td><td>${{ pix: 'PIX', card: 'Cartão de crédito', boleto: 'Boleto' }[p.method] || '—'}</td></tr>
+      <tr><td>Transação</td><td>${p.gateway_ref || '—'}</td></tr>
+      <tr><td>Valor pago</td><td>${money(p.amount_cents)}</td></tr>
+    </table>
+    <p style="font-size:12px;color:#666;margin-top:24px">Documento gerado pelo CINE em ${new Date().toLocaleString('pt-BR')}.</p>
+    <script>print()<\/script></html>`);
+  w.document.close();
 }
 
 /* ─────────────── screens/Details ─────────────── */
@@ -2426,8 +2497,18 @@ function openUpgradePop(reason) {
     list.appendChild(row);
   });
   const cta = el('div');
-  cta.style.cssText = 'padding:0 var(--xl)';
-  cta.innerHTML = `<p class="caption t-ter" style="margin-bottom:var(--md)">O pagamento online chega em breve. Enquanto isso, a ativação é feita pela equipe do CINE.</p>`;
+  cta.style.cssText = 'padding:0 var(--xl);display:flex;flex-direction:column;gap:var(--md)';
+  const price = el('p', 'body', 'Carregando preços…');
+  price.style.fontWeight = '600';
+  cta.appendChild(price);
+  sb.from('billing_plans').select('*').eq('active', true).then(({ data }) => {
+    const m = (data || []).find(p => p.code === 'mensal'), a = (data || []).find(p => p.code === 'anual');
+    const fmt = c => 'R$ ' + (c / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+    price.textContent = m && a
+      ? `${fmt(m.price_cents)}/mês · ou ${fmt(a.price_cents)}/ano (${Math.round(100 - (a.price_cents / 12) / m.price_cents * 100)}% de desconto)`
+      : '';
+  }, () => { price.textContent = ''; });
+  cta.appendChild(el('p', 'caption t-ter', 'O pagamento online chega em breve. Enquanto isso, a ativação é feita pela equipe do CINE.'));
   const ok = el('button', 'btn btn-primary', 'Entendi');
   ok.style.width = '100%';
   ok.onclick = closePop;
