@@ -77,6 +77,35 @@ Sem isso, o link do email confirma a conta mas redireciona para `localhost:3000`
 
 ---
 
+## Planos: Grátis × Premium
+
+O gating de verdade fica no servidor (`is_premium()`, triggers de cap e de assistidos,
+`friend_profile` só compartilha perfis premium). A UI apenas reflete o plano. O admin
+ativa/desativa o Premium de qualquer conta pelo painel (`Ativar Premium`), até o
+pagamento online entrar.
+
+| Grátis (6) | Premium (15) |
+|---|---|
+| 1. Catálogo completo + busca (texto e voz) | 1. Favoritos ilimitados |
+| 2. Detalhes com trailer, elenco e onde assistir | 2. Marcar filmes como vistos |
+| 3. Favoritos até 20 títulos | 3. Marcar episódios (progresso por temporada) |
+| 4. Top 10 da semana | 4. Retomar de onde parou ("até T2·E5") |
+| 5. Histórico de buscas recentes | 5. Perfil compartilhável com amigos (link) |
+| 6. Explorar com filtros e ordenação A–Z | 6. Amigos veem o que você viu e até onde |
+| | 7. Esteira "Para você" personalizada pelo histórico |
+| | 8. Sugestões pós-escolha ilimitadas |
+| | 9. Badge Premium na conta |
+| | 10. Sugestões semanais por email *(em preparação)* |
+| | 11. Alertas de estreia nos seus streamings *(em preparação)* |
+| | 12. Filtro "nos meus streamings" *(em preparação)* |
+| | 13. Estatísticas pessoais de consumo *(em preparação)* |
+| | 14. Exportar listas em CSV *(em preparação)* |
+| | 15. Acesso antecipado a recursos novos |
+
+> ⚠️ Antes de **cobrar** pelo Premium: a API gratuita do TMDB é para uso não comercial —
+> negocie a licença comercial (TMDB for Business) e mantenha a atribuição da JustWatch
+> nos dados de onde assistir.
+
 ## Painel administrativo (`/admin`)
 
 Página separada, mesma conta Supabase — mas **só entra quem tem papel `admin`**, e a

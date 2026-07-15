@@ -332,6 +332,7 @@ function renderTiles() {
   $('#tiles').innerHTML =
     tile(u.total, 'usuários cadastrados') +
     tile(u.online, 'online agora', true) +
+    tile(u.premium ?? 0, 'assinantes premium') +
     tile(u.active_7d, 'ativos na semana') +
     tile(u.new_7d, 'novos na semana') +
     tile(u.blocked, 'bloqueados') +
@@ -414,12 +415,13 @@ function renderCharts() {
 
 /* ─── usuários ─── */
 function renderUsers() {
-  const head = `<tr><th>Nome</th><th>Email</th><th>Papel</th><th>Status</th><th>Cadastro</th><th>Último acesso</th><th>Buscas</th><th>Categoria top</th><th>Sessão média</th><th></th></tr>`;
+  const head = `<tr><th>Nome</th><th>Email</th><th>Papel</th><th>Plano</th><th>Status</th><th>Cadastro</th><th>Último acesso</th><th>Buscas</th><th>Categoria top</th><th>Sessão média</th><th></th></tr>`;
   $('#uTable').innerHTML = head + users.map(u => `
     <tr data-id="${u.id}">
       <td>${esc(u.name) || '—'}</td>
       <td>${esc(u.email)}</td>
       <td><span class="tag ${u.role === 'admin' ? 'admin' : ''}">${u.role}</span></td>
+      <td><span class="tag ${u.plan === 'premium' ? 'admin' : ''}">${u.plan || 'free'}</span></td>
       <td>${u.blocked ? '<span class="tag blocked">bloqueado</span>' : (u.verified ? '<span class="tag ok">ativo</span>' : '<span class="tag">não verificado</span>')}</td>
       <td>${fmtD(u.created_at)}</td>
       <td>${fmtD(u.last_seen_at)}</td>
@@ -427,6 +429,7 @@ function renderUsers() {
       <td>${esc(u.top_genre) || '—'}</td>
       <td>${u.avg_session_min ? u.avg_session_min + ' min' : '—'}</td>
       <td style="display:flex;gap:6px">
+        <button class="btn btn-ghost btn-sm" data-act="plan">${u.plan === 'premium' ? 'Tornar Free' : 'Ativar Premium'}</button>
         <button class="btn btn-ghost btn-sm" data-act="${u.blocked ? 'unblock' : 'block'}">${u.blocked ? 'Desbloquear' : 'Bloquear'}</button>
         <button class="btn btn-ghost btn-sm" data-act="role">${u.role === 'admin' ? 'Rebaixar' : 'Promover'}</button>
         <button class="btn btn-ghost btn-sm" data-act="rename">Renomear</button>
@@ -438,6 +441,7 @@ function renderUsers() {
     const tr = b.closest('tr'), id = tr.dataset.id, u = users.find(x => x.id === id);
     const act = b.dataset.act;
     let action = act, value = null;
+    if (act === 'plan') { action = 'set_plan'; value = u.plan === 'premium' ? 'free' : 'premium'; }
     if (act === 'role') { action = 'set_role'; value = u.role === 'admin' ? 'user' : 'admin'; }
     if (act === 'rename') {
       value = prompt(`Novo nome para ${u.email}:`, u.name);
@@ -478,7 +482,7 @@ function csv(rows, cols, fname) {
   a.click();
   URL.revokeObjectURL(a.href);
 }
-$('#uCsv').onclick = () => csv(users, [['Nome','name'],['Email','email'],['Papel','role'],['Bloqueado','blocked'],['Cadastro','created_at'],['Último acesso','last_seen_at'],['Buscas','searches'],['Categoria top','top_genre'],['Sessão média (min)','avg_session_min']], 'cine-usuarios.csv');
+$('#uCsv').onclick = () => csv(users, [['Nome','name'],['Email','email'],['Papel','role'],['Plano','plan'],['Bloqueado','blocked'],['Cadastro','created_at'],['Último acesso','last_seen_at'],['Buscas','searches'],['Categoria top','top_genre'],['Sessão média (min)','avg_session_min']], 'cine-usuarios.csv');
 $('#sCsv').onclick = () => csv(dash?.recent_searches || [], [['Busca','query'],['Usuário','email'],['Dispositivo','device'],['Quando','created_at']], 'cine-buscas.csv');
 $('#aCsv').onclick = () => csv(audit, [['Admin','actor_email'],['Ação','action'],['Alvo','target_email'],['Valor','value'],['Quando','created_at']], 'cine-auditoria.csv');
 

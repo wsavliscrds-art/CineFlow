@@ -532,6 +532,22 @@
   }
   .ep.open .ep-ov { -webkit-line-clamp: unset; }
 
+  /* check de "episódio visto" (Premium) */
+  .ep-check {
+    flex: 0 0 auto; width: 32px; height: 32px; border-radius: 50%;
+    display: grid; place-items: center; align-self: center;
+    border: 1.5px solid var(--border-strong); color: var(--text-tertiary);
+    transition: all var(--d-fast) var(--ease); cursor: pointer;
+  }
+  .ep-check.on { background: var(--success); border-color: var(--success); color: var(--text-inverse); }
+  .ep.seen .ep-name { color: var(--text-tertiary); }
+  .ep.seen .ep-still { opacity: 0.55; }
+
+  .seen-btn.on { color: var(--success); border-color: rgba(61,220,132,0.4); }
+
+  .plan-card { display: block; }
+  .plan-card .link-btn { padding: 0; }
+
   .overview { color: var(--text-secondary); }
   .overview.clamped { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
   .more-btn { color: var(--text-primary); font-size: 13px; font-weight: 600; align-self: flex-start; }
@@ -656,7 +672,9 @@
 </div>
 
 <header class="topbar" id="topbar">
-  <div class="brand">CINE<span>.</span></div>
+  <div class="brand" style="display:flex;align-items:center;gap:8px">CINE<span>.</span>
+    <span id="planBadge" style="display:none;font-size:10px;font-weight:800;letter-spacing:1px;color:var(--rating);border:1px solid rgba(245,197,24,0.4);border-radius:999px;padding:2px 8px">PREMIUM</span>
+  </div>
   <button class="btn btn-icon btn-ghost" id="btnLogout" aria-label="Desconectar" style="height:36px;width:36px;border-radius:50%">
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
   </button>
@@ -1028,16 +1046,30 @@ async function loadMyList() {
 async function toggleList(title) {
   const i = myList.findIndex(x => x.id === title.id && x.mediaType === title.mediaType);
   const removed = i >= 0;
+  // Grátis: até 20 favoritos (o trigger no servidor garante; aqui é cortesia de UX).
+  if (!removed && !isPremium() && myList.length >= 20) {
+    openUpgradePop('No plano grátis a lista guarda até 20 títulos.');
+    return;
+  }
   if (removed) { myList.splice(i, 1); toast('Removido da sua lista'); }
   else { myList.unshift(title); toast('Salvo na sua lista'); }
   await kv.set('my-list', myList);
   if (sb && currentUser) {
-    // Persistência remota fire-and-forget: a UI já respondeu.
     const t = { id: title.id, mediaType: title.mediaType, title: title.title, posterUrl: title.posterUrl, rating: title.rating, releaseYear: title.releaseYear, overview: title.overview, backdropUrl: title.backdropUrl, genreIds: title.genreIds };
     const q = removed
       ? sb.from('favorites').delete().match({ user_id: currentUser.id, title_id: title.id, media_type: title.mediaType })
       : sb.from('favorites').upsert({ user_id: currentUser.id, title_id: title.id, media_type: title.mediaType, title: t });
-    q.then(() => {}, () => {});
+    q.then(({ error }) => {
+      if (error && !removed) {
+        // Servidor recusou (ex.: cap do grátis): desfaz o otimismo local.
+        myList = myList.filter(x => !(x.id === title.id && x.mediaType === title.mediaType));
+        kv.set('my-list', myList);
+        if (current === 'list') renderList();
+        if (String(error.message).includes('favorites_cap'))
+          openUpgradePop('No plano grátis a lista guarda até 20 títulos.');
+        else toast('Não foi possível salvar agora.');
+      }
+    }, () => {});
   }
   if (current === 'list') renderList();
   return i < 0;
@@ -1228,8 +1260,59 @@ let heroTimer, heroItems = [], heroIdx = 0;
 async function renderHome() {
   const rails = $('#rails');
   rails.innerHTML = '';
+  rails.appendChild(forYouRail());   // personalizada (Premium) ou convite (grátis)
   RAILS.forEach(cfg => rails.appendChild(railEl(cfg)));
   renderHero();
+}
+
+/* ── "Para você": aprende com o histórico de aberturas (Premium) ── */
+function forYouRail() {
+  const sec = el('section', 'rail');
+  sec.appendChild(el('div', 'rail-head', '<h2 class="h2">✨ Para você</h2>'));
+
+  if (!isPremium()) {
+    const box = el('div', 'notice');
+    box.innerHTML = 'Uma esteira que aprende com o que você assiste é exclusiva do <b>Premium</b>. ';
+    const b = el('button', 'link-btn', 'Conhecer');
+    b.onclick = () => openUpgradePop('A esteira "Para você" é montada pelo seu histórico.');
+    box.appendChild(b);
+    sec.appendChild(box);
+    return sec;
+  }
+
+  const track = el('div', 'rail-track');
+  for (let i = 0; i < 5; i++) track.appendChild(skelCard());
+  sec.appendChild(railBody(track));
+
+  (async () => {
+    try {
+      // Gêneros que a pessoa mais abre (histórico próprio; RLS garante o escopo).
+      const { data } = await sb.from('events').select('genre')
+        .eq('kind', 'open').not('genre', 'is', null)
+        .order('created_at', { ascending: false }).limit(200);
+      const counts = {};
+      (data || []).forEach(r => { counts[r.genre] = (counts[r.genre] || 0) + 1; });
+      const topNames = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([g]) => g);
+      if (!topNames.length) { sec.remove(); return; }   // sem histórico ainda: sem esteira
+
+      const [gm, gt] = await Promise.all([repo.genres('movie'), repo.genres('tv')]);
+      const idsIn = list => topNames.map(n => list.find(g => g.name === n)?.id).filter(Boolean).join(',');
+      const [pm, pt] = await Promise.all([
+        repo.page('/discover/movie', { __type: 'movie', with_genres: idsIn(gm) || undefined, sort_by: 'popularity.desc', 'vote_count.gte': 200 }),
+        repo.page('/discover/tv', { __type: 'tv', with_genres: idsIn(gt) || undefined, sort_by: 'popularity.desc', 'vote_count.gte': 200 }),
+      ]);
+
+      // Tira o que já está na lista ou já foi visto — sugestão repetida não sugere nada.
+      const skip = new Set(myList.map(t => `${t.mediaType}:${t.id}`));
+      watchedRows.forEach(r => skip.add(`${r.media_type}:${r.title_id}`));
+      const items = dedupe([...pm.items, ...pt.items]).filter(t => !skip.has(`${t.mediaType}:${t.id}`)).slice(0, 20);
+      if (!items.length) { sec.remove(); return; }
+      track.innerHTML = '';
+      items.forEach(t => track.appendChild(cardEl(t)));
+    } catch { sec.remove(); }   // erro localizado: só esta esteira sai de cena
+  })();
+
+  return sec;
 }
 
 async function renderHero() {
@@ -1631,13 +1714,55 @@ function renderSearch() {
 function renderList() {
   const v = $('#view-list');
   v.innerHTML = `<div style="padding:0 var(--px) var(--lg)"><h1 class="h1">Minha lista</h1></div>`;
-  if (!myList.length) {
+
+  // Cartão do plano: status + compartilhar (premium) ou conhecer o Premium (grátis).
+  const planBox = el('div', 'notice plan-card');
+  if (isPremium()) {
+    planBox.innerHTML = `<b style="color:var(--rating)">⭐ Premium</b> · favoritos ilimitados e perfil compartilhável.<br/>`;
+    const share = el('button', 'link-btn', 'Copiar link do meu perfil para amigos');
+    share.onclick = async () => {
+      haptic();
+      const url = `${location.origin}/?amigo=${SHARE_CODE}`;
+      try { await navigator.clipboard.writeText(url); toast('Link copiado! Manda pros amigos 🎬'); }
+      catch { prompt('Copie o link do seu perfil:', url); }
+    };
+    planBox.appendChild(share);
+  } else {
+    planBox.innerHTML = `Plano <b>Grátis</b> · ${myList.length}/20 favoritos. `;
+    const up = el('button', 'link-btn', 'Conhecer o Premium');
+    up.onclick = () => openUpgradePop();
+    planBox.appendChild(up);
+  }
+  v.appendChild(planBox);
+
+  if (!myList.length && !watchedRows.length) {
     v.appendChild(stateEl(ICON.book.replace('<svg', '<svg width="26" height="26"'), 'Sua lista está vazia', 'Toque no + em qualquer título para salvar aqui.', 'Explorar catálogo', () => go('explore')));
     return;
   }
-  const g = el('div', 'grid');
-  myList.forEach(t => g.appendChild(cardEl(t)));
-  v.appendChild(g);
+
+  if (myList.length) {
+    v.appendChild(el('div', '', `<div style="padding:0 var(--px) var(--md)"><span class="overline t-ter">Favoritos</span></div>`));
+    const g = el('div', 'grid');
+    myList.forEach(t => g.appendChild(cardEl(t)));
+    v.appendChild(g);
+  }
+
+  // Assistidos (Premium): um card por título, com "até onde viu" nas séries.
+  if (isPremium() && watchedRows.length) {
+    v.appendChild(el('div', '', `<div style="padding:var(--xl) var(--px) var(--md)"><span class="overline t-ter">Já assisti</span></div>`));
+    const seen = new Map();
+    watchedRows.forEach(r => { if (r.title && !seen.has(`${r.media_type}:${r.title_id}`)) seen.set(`${r.media_type}:${r.title_id}`, r.title); });
+    const g2 = el('div', 'grid');
+    seen.forEach(t => {
+      const wrap = el('div');
+      wrap.style.cssText = 'display:flex;flex-direction:column;gap:4px';
+      wrap.appendChild(cardEl(t));
+      const prog = watchProgress(t.id);
+      if (t.mediaType === 'tv' && prog) wrap.appendChild(el('span', 'caption t-ter', `até T${prog.s}·E${prog.e}`));
+      g2.appendChild(wrap);
+    });
+    v.appendChild(g2);
+  }
 }
 
 /* ─────────────── screens/Details ─────────────── */
@@ -1755,6 +1880,19 @@ function detailsEl(d, autoplay) {
   paintSave();
   save.onclick = async () => { haptic(); await toggleList(d); paintSave(); };
   acts.appendChild(save);
+
+  // Filme: marcar como visto (Premium). Série marca por episódio, lá embaixo.
+  if (d.mediaType === 'movie') {
+    const seen = el('button', 'btn btn-ghost seen-btn');
+    const paintSeen = () => {
+      const on = watchedSet.has(wKey('movie', d.id));
+      seen.innerHTML = on ? `${ICON.check} Visto` : 'Já vi';
+      seen.classList.toggle('on', on);
+    };
+    paintSeen();
+    seen.onclick = async () => { if (await toggleWatched(d) !== null) paintSeen(); };
+    acts.appendChild(seen);
+  }
   body.appendChild(acts);
 
   /* sinopse com expandir */
@@ -1888,7 +2026,7 @@ function seasonsEl(d) {
         list.appendChild(stateEl(ICON.empty, 'Sem episódios', 'Esta temporada ainda não tem episódios cadastrados.'));
         return;
       }
-      eps.forEach(e => list.appendChild(epEl(e)));
+      eps.forEach(e => list.appendChild(epEl(e, d, Number(num))));
     } catch (err) {
       if (my !== token) return;
       list.innerHTML = '';
@@ -1906,7 +2044,7 @@ function seasonsEl(d) {
   return wrap;
 }
 
-function epEl(e) {
+function epEl(e, show, seasonNum) {
   const row = el('button', 'ep');
   row.setAttribute('aria-label', `Episódio ${e.number}: ${e.name}`);
 
@@ -1934,6 +2072,25 @@ function epEl(e) {
 
   if (e.overview) main.appendChild(el('p', 'ep-ov', esc(e.overview)));
   row.appendChild(main);
+
+  // Marcar episódio como visto (Premium) — pro amigo saber até onde você foi.
+  if (show && seasonNum >= 0) {
+    const chk = el('span', 'ep-check');
+    chk.setAttribute('role', 'button');
+    chk.setAttribute('aria-label', `Marcar episódio ${e.number} como visto`);
+    const paint = () => {
+      const on = watchedSet.has(wKey('tv', show.id, seasonNum, e.number));
+      chk.innerHTML = ICON.check;
+      chk.classList.toggle('on', on);
+      row.classList.toggle('seen', on);
+    };
+    paint();
+    chk.onclick = async ev => {
+      ev.stopPropagation();  // não expande a sinopse junto
+      if (await toggleWatched(show, seasonNum, e.number) !== null) paint();
+    };
+    row.appendChild(chk);
+  }
 
   // Toque expande a sinopse do episódio (não há para onde navegar — não é um player).
   row.onclick = () => { if (e.overview) { haptic(); row.classList.toggle('open'); } };
@@ -2014,6 +2171,59 @@ $('#gateRetry').onclick = async () => {
   }
 };
 
+/* ─────────────── data/watched ───────────────
+   Assistidos (Premium): filme inteiro (season/episode = -1) ou episódio
+   a episódio. Alimenta o progresso, o "Para você" e o perfil de amigo. */
+let watchedRows = [];
+let watchedSet = new Set();
+const wKey = (type, id, s = -1, e = -1) => `${type}:${id}:${s}:${e}`;
+
+async function loadWatched() {
+  watchedRows = []; watchedSet = new Set();
+  if (!sb || !currentUser || !isPremium()) return;
+  const { data } = await sb.from('watched')
+    .select('title_id, media_type, season, episode, title, watched_at')
+    .order('watched_at', { ascending: false }).limit(500);
+  watchedRows = data || [];
+  watchedRows.forEach(r => watchedSet.add(wKey(r.media_type, r.title_id, r.season, r.episode)));
+}
+
+async function toggleWatched(t, season = -1, episode = -1) {
+  if (!isPremium()) {
+    openUpgradePop('Marcar o que você já viu é um recurso Premium.');
+    return null;
+  }
+  const k = wKey(t.mediaType, t.id, season, episode);
+  const on = watchedSet.has(k);
+  haptic();
+  if (on) {
+    watchedSet.delete(k);
+    watchedRows = watchedRows.filter(r => wKey(r.media_type, r.title_id, r.season, r.episode) !== k);
+    sb.from('watched').delete()
+      .match({ user_id: currentUser.id, title_id: t.id, media_type: t.mediaType, season, episode })
+      .then(() => {}, () => {});
+  } else {
+    const snap = { id: t.id, mediaType: t.mediaType, title: t.title, posterUrl: t.posterUrl, rating: t.rating, releaseYear: t.releaseYear, genreIds: t.genreIds || [] };
+    watchedSet.add(k);
+    watchedRows.unshift({ title_id: t.id, media_type: t.mediaType, season, episode, title: snap, watched_at: new Date().toISOString() });
+    sb.from('watched')
+      .upsert({ user_id: currentUser.id, title_id: t.id, media_type: t.mediaType, season, episode, title: snap })
+      .then(() => {}, () => {});
+  }
+  return !on;
+}
+
+/* "até onde viu": maior temporada/episódio marcado de uma série */
+function watchProgress(titleId) {
+  let best = null;
+  watchedRows.forEach(r => {
+    if (r.title_id !== titleId || r.media_type !== 'tv' || r.season < 0) return;
+    if (!best || r.season > best.s || (r.season === best.s && r.episode > best.e))
+      best = { s: r.season, e: r.episode };
+  });
+  return best;
+}
+
 /* ─────────────── components/Popup ───────────────
    Sugestões em popup: Top 10 da semana e "parecidos com o que você viu".
    Um por vez; clicar num card fecha o popup e abre os detalhes. */
@@ -2086,9 +2296,76 @@ function maybeSuggestSimilar() {
 
 async function boot() {
   buildTabs();
-  await loadMyList();
+  await Promise.all([loadMyList(), loadWatched()]);
   renderHome();
+  $('#planBadge').style.display = isPremium() ? '' : 'none';
   setTimeout(maybeShowTop10, 2500);   // deixa a Home respirar antes do popup
+  maybeOpenFriend();                  // veio por link de amigo? mostra o perfil
+}
+
+/* ── perfil de amigo: ?amigo=<code> abre o que a pessoa já viu ── */
+async function maybeOpenFriend() {
+  const code = new URLSearchParams(location.search).get('amigo');
+  if (!code || !sb) return;
+  history.replaceState(null, '', location.pathname);
+  try {
+    const { data, error } = await sb.rpc('friend_profile', { p_code: code });
+    if (error || !data) { toast('Esse perfil não está disponível.'); return; }
+    openFriendPop(data);
+  } catch { toast('Esse perfil não está disponível.'); }
+}
+
+function openFriendPop(p) {
+  const pop = $('#pop'), back = $('#popBackdrop');
+  pop.innerHTML = '';
+  const head = el('div', 'pop-head');
+  const tt = el('div');
+  tt.appendChild(el('h2', 'h2', `🎬 O que ${esc(p.name || 'seu amigo')} já viu`));
+  tt.appendChild(el('p', 'caption t-sec', 'Perfil compartilhado via CINE Premium.'));
+  head.appendChild(tt);
+  const close = el('button', 'pop-close', ICON.close);
+  close.setAttribute('aria-label', 'Fechar');
+  close.onclick = closePop;
+  head.appendChild(close);
+  pop.appendChild(head);
+
+  const section = (label, items, progressOf) => {
+    if (!items.length) return;
+    const h = el('div', 'pop-head'); h.style.marginBottom = '0';
+    h.appendChild(el('span', 'overline t-ter', label));
+    pop.appendChild(h);
+    const track = el('div', 'rail-track');
+    items.forEach(t => {
+      const wrap = el('div');
+      wrap.style.cssText = 'flex:0 0 auto;display:flex;flex-direction:column;gap:4px';
+      const c = cardEl(t);
+      const origin = c.onclick;
+      c.onclick = ev => { closePop(); origin?.call(c, ev); };
+      wrap.appendChild(c);
+      const prog = progressOf?.(t);
+      if (prog) wrap.appendChild(el('span', 'caption t-ter', `viu até T${prog.s}·E${prog.e}`));
+      track.appendChild(wrap);
+    });
+    pop.appendChild(railBody(track));
+  };
+
+  // Assistidos: um card por título, com progresso nas séries.
+  const seen = new Map();
+  const progress = new Map();
+  (p.watched || []).forEach(r => {
+    if (r.title) seen.set(`${r.media_type}:${r.title_id}`, r.title);
+    if (r.media_type === 'tv' && r.season >= 0) {
+      const b = progress.get(r.title_id);
+      if (!b || r.season > b.s || (r.season === b.s && r.episode > b.e))
+        progress.set(r.title_id, { s: r.season, e: r.episode });
+    }
+  });
+  section('Assistidos', [...seen.values()], t => progress.get(t.id));
+  section('Favoritos', (p.favorites || []).map(f => f.title).filter(Boolean));
+
+  back.classList.add('open');
+  pop.classList.add('open');
+  back.onclick = closePop;
 }
 
 /* ─────────────── core/auth ───────────────
@@ -2110,6 +2387,58 @@ let currentUser = null;
 /* ─────────────── data/telemetry ───────────────
    Eventos anônimos por conta (busca, abertura, sessão) alimentam o painel
    admin. Fire-and-forget: telemetria nunca pode quebrar a navegação. */
+/* ─────────────── domain/plan ───────────────
+   Free × Premium. A regra de verdade vive no servidor (is_premium, trigger
+   de cap, friend_profile); aqui só decidimos o que desenhar. */
+let USER_PLAN = 'free';
+let SHARE_CODE = null;
+const isPremium = () => USER_PLAN === 'premium';
+
+const PREMIUM_PERKS = [
+  'Favoritos ilimitados (grátis: até 20)',
+  'Marcar filmes e episódios como vistos',
+  'Progresso por temporada — retome de onde parou',
+  'Perfil compartilhável: amigos veem o que você já viu',
+  'Esteira "Para você" personalizada pelo seu histórico',
+  'Sugestões semanais por email (em breve)',
+];
+
+function openUpgradePop(reason) {
+  const pop = $('#pop'), back = $('#popBackdrop');
+  pop.innerHTML = '';
+  const head = el('div', 'pop-head');
+  const tt = el('div');
+  tt.appendChild(el('h2', 'h2', '⭐ CINE Premium'));
+  if (reason) tt.appendChild(el('p', 'caption t-sec', esc(reason)));
+  head.appendChild(tt);
+  const close = el('button', 'pop-close', ICON.close);
+  close.setAttribute('aria-label', 'Fechar');
+  close.onclick = closePop;
+  head.appendChild(close);
+  pop.appendChild(head);
+
+  const list = el('div');
+  list.style.cssText = 'display:flex;flex-direction:column;gap:var(--md);padding:0 var(--xl) var(--lg)';
+  PREMIUM_PERKS.forEach(p => {
+    const row = el('div');
+    row.style.cssText = 'display:flex;gap:var(--md);align-items:flex-start;font-size:14px;line-height:20px';
+    row.innerHTML = `<span style="color:var(--success);flex:0 0 auto">${ICON.check}</span><span>${esc(p)}</span>`;
+    list.appendChild(row);
+  });
+  const cta = el('div');
+  cta.style.cssText = 'padding:0 var(--xl)';
+  cta.innerHTML = `<p class="caption t-ter" style="margin-bottom:var(--md)">O pagamento online chega em breve. Enquanto isso, a ativação é feita pela equipe do CINE.</p>`;
+  const ok = el('button', 'btn btn-primary', 'Entendi');
+  ok.style.width = '100%';
+  ok.onclick = closePop;
+  cta.appendChild(ok);
+  pop.append(list, cta);
+
+  back.classList.add('open');
+  pop.classList.add('open');
+  back.onclick = closePop;
+}
+
 const SESSION_KEY = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`.replace('.', '');
 const DEVICE = /iPad|Tablet/i.test(navigator.userAgent) ? 'tablet'
   : /Mobi|Android/i.test(navigator.userAgent) ? 'mobile' : 'desktop';
@@ -2285,13 +2614,15 @@ async function enterApp(user) {
   currentUser = user;
 
   // Conta bloqueada não entra — o proxy também recusa no servidor.
-  const { data: prof } = await sb.from('profiles').select('blocked').eq('id', user.id).maybeSingle();
+  const { data: prof } = await sb.from('profiles').select('blocked, plan, share_code').eq('id', user.id).maybeSingle();
   if (prof?.blocked) {
     currentUser = null;
     await sb.auth.signOut();
     $('#authErr').textContent = 'Sua conta foi bloqueada por um administrador.';
     return;
   }
+  USER_PLAN = prof?.plan || 'free';       // o servidor é quem manda; isto é só UI
+  SHARE_CODE = prof?.share_code || null;
 
   $('#auth').style.display = 'none';
 
