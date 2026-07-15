@@ -48,7 +48,7 @@ function dig(obj: unknown, paths: string[]): unknown {
 function normalize(p: Record<string, unknown>) {
   const rawEvent = String(dig(p, ['event', 'type', 'status', 'data.status']) ?? '').toLowerCase();
   let event = '';
-  if (/approved|paid|pago|completed|sale_approved|purchase_approved/.test(rawEvent)) event = 'approved';
+  if (/approved|paid|pago|completed|renewed|renovad|sale_approved|purchase_approved/.test(rawEvent)) event = 'approved';
   else if (/pending|waiting|aguardando|pix_generated|boleto/.test(rawEvent) && !/refus/.test(rawEvent)) event = 'pending';
   else if (/refused|declined|recusad|failed/.test(rawEvent)) event = 'refused';
   else if (/refund|reembols/.test(rawEvent)) event = 'refunded';
@@ -57,7 +57,7 @@ function normalize(p: Record<string, unknown>) {
 
   const email = String(dig(p, ['email', 'customer.email', 'data.customer.email', 'buyer.email']) ?? '').toLowerCase().trim();
 
-  const planRaw = String(dig(p, ['plan', 'plan_code', 'product.name', 'data.product.name', 'products.0.name', 'offer.name']) ?? '').toLowerCase();
+  const planRaw = String(dig(p, ['plan', 'plan_code', 'product.name', 'data.product.name', 'products.0.name', 'offer.name', 'data.offer.name']) ?? '').toLowerCase();
   const plan = /anual|yearly|year|12/.test(planRaw) ? 'anual' : 'mensal';
 
   let amount = Number(dig(p, ['amount_cents']) ?? NaN);
@@ -67,7 +67,7 @@ function normalize(p: Record<string, unknown>) {
     amount = Number.isFinite(v) ? (v < 1000 && !Number.isInteger(v) ? Math.round(v * 100) : (v < 500 ? Math.round(v * 100) : Math.round(v))) : 0;
   }
 
-  const methodRaw = String(dig(p, ['method', 'payment_method', 'data.payment_method', 'payment.method']) ?? '').toLowerCase();
+  const methodRaw = String(dig(p, ['method', 'payment_method', 'paymentMethod', 'data.payment_method', 'data.paymentMethod', 'payment.method']) ?? '').toLowerCase();
   const method = /pix/.test(methodRaw) ? 'pix' : /card|credit|cartao|cartão/.test(methodRaw) ? 'card' : /boleto|bank_slip/.test(methodRaw) ? 'boleto' : null;
 
   const ref = String(dig(p, ['ref', 'sale_id', 'transaction_id', 'data.id', 'purchase.transaction', 'id']) ?? '') || null;
@@ -79,11 +79,15 @@ function normalize(p: Record<string, unknown>) {
 Deno.serve(async (req) => {
   if (req.method !== 'POST') return json({ error: 'método não permitido' }, 405);
 
-  const given = req.headers.get('x-webhook-secret') ?? new URL(req.url).searchParams.get('secret') ?? '';
-  if (given !== await getSecret()) return json({ error: 'não autorizado' }, 401);
-
   let payload: Record<string, unknown>;
   try { payload = await req.json(); } catch { return json({ error: 'json inválido' }, 400); }
+
+  // O segredo pode vir no header, na query string ou no corpo
+  // (a Cakto manda a "Chave secreta" dentro do payload, campo `secret`).
+  const given = req.headers.get('x-webhook-secret')
+    ?? new URL(req.url).searchParams.get('secret')
+    ?? String(payload.secret ?? '');
+  if (given !== await getSecret()) return json({ error: 'não autorizado' }, 401);
 
   const n = normalize(payload);
   if (!n.event) return json({ ok: true, ignored: 'evento desconhecido' });

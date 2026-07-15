@@ -2498,19 +2498,35 @@ function openUpgradePop(reason) {
   });
   const cta = el('div');
   cta.style.cssText = 'padding:0 var(--xl);display:flex;flex-direction:column;gap:var(--md)';
-  const price = el('p', 'body', 'Carregando preços…');
-  price.style.fontWeight = '600';
-  cta.appendChild(price);
+  const btns = el('div');
+  btns.style.cssText = 'display:flex;flex-direction:column;gap:var(--sm)';
+  btns.innerHTML = '<div class="spin" style="margin:0 auto"></div>';
+  cta.appendChild(btns);
+  const note = el('p', 'caption t-ter',
+    `⚠️ No pagamento, use o email da sua conta (${esc(currentUser?.email || 'o mesmo do login')}) — é assim que o Premium é liberado sozinho, em segundos.`);
+  cta.appendChild(note);
   sb.from('billing_plans').select('*').eq('active', true).then(({ data }) => {
-    const m = (data || []).find(p => p.code === 'mensal'), a = (data || []).find(p => p.code === 'anual');
     const fmt = c => 'R$ ' + (c / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
-    price.textContent = m && a
-      ? `${fmt(m.price_cents)}/mês · ou ${fmt(a.price_cents)}/ano (${Math.round(100 - (a.price_cents / 12) / m.price_cents * 100)}% de desconto)`
-      : '';
-  }, () => { price.textContent = ''; });
-  cta.appendChild(el('p', 'caption t-ter', 'O pagamento online chega em breve. Enquanto isso, a ativação é feita pela equipe do CINE.'));
-  const ok = el('button', 'btn btn-primary', 'Entendi');
-  ok.style.width = '100%';
+    const m = (data || []).find(p => p.code === 'mensal'), a = (data || []).find(p => p.code === 'anual');
+    btns.innerHTML = '';
+    const mkBtn = (plan, label, ghost) => {
+      if (!plan) return;
+      const b = el('a', ghost ? 'btn btn-ghost' : 'btn btn-primary', label);
+      b.style.width = '100%';
+      if (plan.checkout_url) {
+        const u = new URL(plan.checkout_url);
+        if (currentUser?.email) u.searchParams.set('email', currentUser.email);
+        b.href = u.toString(); b.target = '_blank'; b.rel = 'noopener';
+      } else {
+        b.onclick = closePop;
+      }
+      btns.appendChild(b);
+    };
+    if (a) mkBtn(a, `Assinar Anual — ${fmt(a.price_cents)}/ano${m ? ` (economize ${Math.max(0, Math.round(100 - (a.price_cents / 12) / m.price_cents * 100))}%)` : ''}`);
+    if (m) mkBtn(m, `Assinar Mensal — ${fmt(m.price_cents)}/mês`, true);
+    if (!a && !m) btns.appendChild(el('p', 'caption t-ter', 'Planos indisponíveis no momento.'));
+  }, () => { btns.innerHTML = ''; });
+  const ok = el('button', 'link-btn', 'Agora não');
   ok.onclick = closePop;
   cta.appendChild(ok);
   pop.append(list, cta);
@@ -2534,6 +2550,16 @@ function track(kind, extra = {}) {
 setInterval(() => {
   if (currentUser && document.visibilityState === 'visible') track('session');
 }, 120_000);
+
+// Voltou do checkout? Se o webhook já ativou o Premium, o app se atualiza sozinho.
+document.addEventListener('visibilitychange', async () => {
+  if (document.visibilityState !== 'visible' || !sb || !currentUser || isPremium()) return;
+  const { data } = await sb.from('profiles').select('plan').eq('id', currentUser.id).maybeSingle();
+  if (data?.plan === 'premium') {
+    toast('Pagamento confirmado! Bem-vindo ao Premium 🎉');
+    setTimeout(() => location.reload(), 1400);
+  }
+});
 
 /* Mensagens da API → texto humano, no mesmo espírito de core/errors. */
 function authMessage(error) {
