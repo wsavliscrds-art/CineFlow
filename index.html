@@ -602,6 +602,102 @@
   @media (prefers-reduced-motion: reduce) {
     *, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
   }
+
+  /* ─── screens/Profile ─── */
+  .profile-hero { position: relative; margin: 0 calc(-1 * var(--px)) var(--xl); }
+  .profile-banner {
+    height: 180px; background: linear-gradient(135deg, #1a1a2e, #533a71);
+    background-size: cover; background-position: center; position: relative;
+  }
+  .profile-banner .cam {
+    position: absolute; right: 12px; bottom: 12px;
+    width: 34px; height: 34px; border-radius: 50%;
+    background: rgba(0,0,0,0.55); color:#fff; border: 1px solid rgba(255,255,255,0.2);
+    display:flex;align-items:center;justify-content:center;cursor:pointer;
+  }
+  .profile-head {
+    padding: 0 var(--px); margin-top: -48px;
+    display: flex; align-items: flex-end; gap: var(--md); flex-wrap: wrap;
+  }
+  .profile-avatar {
+    width: 96px; height: 96px; border-radius: 50%;
+    background: var(--surface3); border: 3px solid var(--bg);
+    background-size: cover; background-position: center;
+    display:flex;align-items:center;justify-content:center;font-size: 32px; font-weight: 800;
+    color: var(--text-secondary); position: relative; flex: 0 0 auto;
+  }
+  .profile-avatar .cam {
+    position: absolute; right: -2px; bottom: -2px;
+    width: 30px; height: 30px; border-radius: 50%;
+    background: var(--accent); color: #000; border: 2px solid var(--bg);
+    display:flex;align-items:center;justify-content:center;cursor:pointer;
+  }
+  .profile-name { flex: 1 1 240px; min-width: 0; }
+  .profile-name h1 {
+    margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -0.4px;
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  }
+  .profile-name .lvl {
+    font-size: 10px; font-weight: 800; letter-spacing: 1px; color: var(--accent);
+    border: 1px solid rgba(56,189,248,0.4); border-radius: 999px; padding: 2px 8px;
+  }
+  .profile-name .sub { color: var(--text-secondary); font-size: 13px; margin-top: 2px; }
+  .profile-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: var(--md); }
+
+  .profile-bio { padding: 0 var(--px); color: var(--text-secondary); font-size: 14px; line-height: 1.5; margin: var(--md) 0; white-space: pre-wrap; }
+  .profile-bio.empty { color: var(--text-tertiary); font-style: italic; }
+  .profile-socials { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 var(--px); margin: var(--md) 0; }
+  .profile-socials a {
+    display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600;
+    padding: 6px 12px; border-radius: 999px; background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text-primary); text-decoration: none;
+  }
+  .profile-socials a:hover { background: var(--surface3); }
+
+  .xp-bar-wrap { padding: var(--md) var(--px); }
+  .xp-bar-label { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-secondary); margin-bottom: 6px; }
+  .xp-bar { height: 8px; background: var(--surface2); border-radius: 999px; overflow: hidden; }
+  .xp-bar > span { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), #a78bfa); border-radius: 999px; transition: width var(--d-slow); }
+
+  .stats-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: var(--sm); padding: 0 var(--px); margin: var(--md) 0;
+  }
+  .stat-tile {
+    background: var(--surface2); border: 1px solid var(--border); border-radius: var(--r-md);
+    padding: var(--md); text-align: center;
+  }
+  .stat-tile .n { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; }
+  .stat-tile .l { color: var(--text-tertiary); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px; }
+
+  .badge-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: var(--sm); padding: 0 var(--px);
+  }
+  .badge-item {
+    background: var(--surface2); border: 1px solid var(--border); border-radius: var(--r-md);
+    padding: var(--md); text-align: center; position: relative;
+  }
+  .badge-item.locked { opacity: 0.35; filter: grayscale(1); }
+  .badge-item .ic { font-size: 34px; line-height: 1; }
+  .badge-item .nm { font-size: 12px; font-weight: 700; margin-top: 6px; }
+  .badge-item .dc { font-size: 11px; color: var(--text-tertiary); margin-top: 2px; }
+  .badge-item .rw {
+    position: absolute; top: 6px; right: 6px; font-size: 10px; font-weight: 700; color: var(--accent);
+    background: rgba(56,189,248,0.1); border-radius: 999px; padding: 2px 6px;
+  }
+
+  .edit-form { padding: 0 var(--px); display: grid; gap: var(--md); }
+  .edit-form label { font-size: 12px; color: var(--text-secondary); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+  .edit-form input, .edit-form textarea, .edit-form select {
+    width: 100%; padding: 10px var(--md);
+    background: var(--surface2); border: 1px solid var(--border); border-radius: var(--r-md);
+    color: var(--text-primary); font-size: 14px; font-family: inherit; outline: none;
+  }
+  .edit-form textarea { min-height: 88px; resize: vertical; }
+  .edit-form input:focus, .edit-form textarea:focus, .edit-form select:focus { border-color: var(--accent); }
+  .chip-picker { display: flex; flex-wrap: wrap; gap: var(--sm); margin-top: 6px; }
+  .chip-picker .chip { cursor: pointer; }
 </style>
 
 <!-- ═══════════════════════ MARKUP ═══════════════════════ -->
@@ -691,6 +787,8 @@
   <section class="view" id="view-search" style="padding-top:calc(72px + env(safe-area-inset-top))"></section>
 
   <section class="view" id="view-list" style="padding-top:calc(72px + env(safe-area-inset-top))"></section>
+
+  <section class="view" id="view-profile" style="padding-top:calc(72px + env(safe-area-inset-top))"></section>
 </main>
 
 <nav class="tabbar" id="tabbar"></nav>
@@ -1100,6 +1198,8 @@ const ICON = {
   book: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z"/></svg>',
   empty: '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5M8 11h6"/></svg>',
   warn: '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 8v5M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg>',
+  user: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>',
+  cam: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19V8a2 2 0 0 0-2-2h-3.2l-1.8-2.8A1 1 0 0 0 15.15 3H8.85a1 1 0 0 0-.85.45L6.2 6H3a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h18a2 2 0 0 0 2-2z"/><circle cx="12" cy="13" r="4"/></svg>',
 };
 
 /* ─────────────── components/Card ─────────────── */
@@ -1778,6 +1878,243 @@ function renderList() {
   }
 }
 
+/* ─────────────── screens/Profile ───────────────
+   Perfil do usuário: banner + avatar + nível/XP + badges + estatísticas
+   + editor (bio, país, redes, gêneros preferidos). Upload de imagem via
+   Supabase Storage (buckets 'avatars' e 'banners', prefixo = user.id). */
+const SOCIAL_ICONS = {
+  instagram: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="18" cy="6" r="1" fill="currentColor"/></svg>',
+  twitter:   '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>',
+  youtube:   '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 0 0 .5 6.2 31 31 0 0 0 0 12a31 31 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1A31 31 0 0 0 24 12a31 31 0 0 0-.5-5.8zM9.6 15.6V8.4l6.3 3.6z"/></svg>',
+  letterboxd:'<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="4" cy="12" r="3"/><circle cx="12" cy="12" r="3"/><circle cx="20" cy="12" r="3"/></svg>',
+  tiktok:    '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19.6 6.3a4.8 4.8 0 0 1-3.8-1.9v10.4a5.7 5.7 0 1 1-5.7-5.7c.3 0 .6 0 .9.1v3a2.7 2.7 0 1 0 1.9 2.6V2h3a4.8 4.8 0 0 0 3.7 4.3z"/></svg>',
+};
+
+let profileState = null;    // último my_profile_stats() + row profiles
+let profileEditing = false;
+
+async function loadMyProfile() {
+  if (!sb || !currentUser) return null;
+  const [profRow, stats] = await Promise.all([
+    sb.from('profiles').select('id,name,email,bio,country,socials,avatar_url,banner_url,preferred_genres,streamings,xp,level,created_at,share_code').eq('id', currentUser.id).maybeSingle(),
+    sb.rpc('my_profile_stats'),
+  ]);
+  profileState = { row: profRow.data || {}, stats: stats.data || {} };
+  return profileState;
+}
+
+const XP_TO_NEXT = (lvl) => (lvl * lvl) * 50;
+
+async function renderProfile() {
+  const v = $('#view-profile');
+  v.innerHTML = `<div style="padding:0 var(--px) var(--md)"><div class="spin" style="margin:24px auto"></div></div>`;
+  await loadMyProfile();
+  if (!profileState) { v.innerHTML = ''; return; }
+
+  const { row, stats } = profileState;
+  const name = row.name || 'Sem nome';
+  const initials = name.split(/\s+/).map(s => s[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || '?';
+  const level = row.level || 1;
+  const xp = row.xp || 0;
+  const nextXp = XP_TO_NEXT(level);
+  const prevXp = level > 1 ? XP_TO_NEXT(level - 1) : 0;
+  const pct = Math.max(0, Math.min(100, Math.round(((xp - prevXp) / Math.max(1, (nextXp - prevXp))) * 100)));
+  const banner = row.banner_url ? `background-image:url('${esc(row.banner_url)}')` : '';
+  const avatar = row.avatar_url ? `background-image:url('${esc(row.avatar_url)}')` : '';
+
+  v.innerHTML = `
+    <div class="profile-hero">
+      <div class="profile-banner" style="${banner}">
+        <button class="cam" id="pfBannerBtn" title="Trocar capa" aria-label="Trocar capa">${ICON.cam}</button>
+        <input type="file" id="pfBannerFile" accept="image/jpeg,image/png,image/webp" style="display:none">
+      </div>
+      <div class="profile-head">
+        <div class="profile-avatar" style="${avatar}">
+          ${avatar ? '' : esc(initials)}
+          <button class="cam" id="pfAvatarBtn" title="Trocar foto" aria-label="Trocar foto">${ICON.cam}</button>
+          <input type="file" id="pfAvatarFile" accept="image/jpeg,image/png,image/webp,image/gif" style="display:none">
+        </div>
+        <div class="profile-name">
+          <h1>${esc(name)} <span class="lvl">NÍVEL ${level}</span> ${isPremium() ? '<span class="lvl" style="color:var(--rating);border-color:rgba(245,197,24,0.4)">PREMIUM</span>' : ''}</h1>
+          <div class="sub">${esc(row.country || '—')} · membro desde ${new Date(row.created_at || Date.now()).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })}</div>
+          <div class="profile-actions">
+            <button class="btn btn-ghost" id="pfEditBtn">Editar perfil</button>
+            ${isPremium() && row.share_code ? '<button class="btn btn-ghost" id="pfShareBtn">Copiar link</button>' : ''}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="xp-bar-wrap">
+      <div class="xp-bar-label"><span>${xp} XP</span><span>Próximo nível: ${nextXp} XP</span></div>
+      <div class="xp-bar"><span style="width:${pct}%"></span></div>
+    </div>
+
+    <div class="profile-bio ${row.bio ? '' : 'empty'}">${row.bio ? esc(row.bio) : 'Adicione uma bio no editor 👇'}</div>
+
+    <div class="profile-socials" id="pfSocials"></div>
+
+    <div style="padding:var(--lg) var(--px) var(--md)"><span class="overline t-ter">Estatísticas</span></div>
+    <div class="stats-grid">
+      <div class="stat-tile"><div class="n">${stats.watched_count || 0}</div><div class="l">Assistidos</div></div>
+      <div class="stat-tile"><div class="n">${stats.episodes_count || 0}</div><div class="l">Episódios</div></div>
+      <div class="stat-tile"><div class="n">${stats.favorites_count || 0}</div><div class="l">Favoritos</div></div>
+      <div class="stat-tile"><div class="n">${stats.searches_count || 0}</div><div class="l">Buscas</div></div>
+      <div class="stat-tile"><div class="n">${stats.days_active || 0}</div><div class="l">Dias ativos</div></div>
+      <div class="stat-tile"><div class="n">${stats.sessions_count || 0}</div><div class="l">Sessões</div></div>
+    </div>
+
+    <div style="padding:var(--lg) var(--px) var(--md);display:flex;justify-content:space-between;align-items:baseline">
+      <span class="overline t-ter">Conquistas</span>
+      <span class="caption t-ter">${(stats.badges || []).length}/${((stats.badges || []).length + (stats.available_badges || []).length)}</span>
+    </div>
+    <div class="badge-grid" id="pfBadges"></div>
+
+    <div style="padding:var(--xxl) var(--px)"></div>
+  `;
+
+  // Socials
+  const socialsEl = $('#pfSocials');
+  const socials = row.socials || {};
+  const links = [];
+  if (socials.instagram) links.push(['instagram', 'Instagram', `https://instagram.com/${socials.instagram.replace(/^@/, '')}`]);
+  if (socials.twitter)   links.push(['twitter', 'Twitter/X', `https://x.com/${socials.twitter.replace(/^@/, '')}`]);
+  if (socials.youtube)   links.push(['youtube', 'YouTube', /^https?:/.test(socials.youtube) ? socials.youtube : `https://youtube.com/${socials.youtube}`]);
+  if (socials.letterboxd)links.push(['letterboxd', 'Letterboxd', `https://letterboxd.com/${socials.letterboxd.replace(/^@/, '')}`]);
+  if (socials.tiktok)    links.push(['tiktok', 'TikTok', `https://tiktok.com/@${socials.tiktok.replace(/^@/, '')}`]);
+  links.forEach(([k, l, url]) => {
+    const a = document.createElement('a');
+    a.href = url; a.target = '_blank'; a.rel = 'noopener';
+    a.innerHTML = `${SOCIAL_ICONS[k] || ''}<span>${l}</span>`;
+    socialsEl.appendChild(a);
+  });
+
+  // Badges — ganhos + a ganhar
+  const badgeEl = $('#pfBadges');
+  (stats.badges || []).forEach(b => {
+    const it = el('div', 'badge-item');
+    it.innerHTML = `<div class="ic">${b.icon}</div><div class="nm">${esc(b.name)}</div><div class="dc">${esc(b.description)}</div>`;
+    badgeEl.appendChild(it);
+  });
+  (stats.available_badges || []).forEach(b => {
+    const it = el('div', 'badge-item locked');
+    it.innerHTML = `<div class="ic">${b.icon}</div><div class="nm">${esc(b.name)}</div><div class="dc">${esc(b.description)}</div>${b.xp_reward ? `<div class="rw">+${b.xp_reward} XP</div>` : ''}`;
+    badgeEl.appendChild(it);
+  });
+
+  // Wire up buttons
+  $('#pfEditBtn').onclick = openProfileEditor;
+  const shareBtn = $('#pfShareBtn');
+  if (shareBtn) shareBtn.onclick = async () => {
+    const url = `${location.origin}/?amigo=${row.share_code}`;
+    try { await navigator.clipboard.writeText(url); toast('Link copiado! 🎬'); }
+    catch { prompt('Copie:', url); }
+    sb.rpc('grant_badge', { p_code: 'social' }).then(() => setTimeout(renderProfile, 500));
+  };
+  $('#pfAvatarBtn').onclick = () => $('#pfAvatarFile').click();
+  $('#pfAvatarFile').onchange = (e) => uploadProfileImage('avatars', e.target.files[0]);
+  $('#pfBannerBtn').onclick = () => $('#pfBannerFile').click();
+  $('#pfBannerFile').onchange = (e) => uploadProfileImage('banners', e.target.files[0]);
+}
+
+async function uploadProfileImage(bucket, file) {
+  if (!file || !currentUser) return;
+  if (file.size > (bucket === 'banners' ? 6 : 3) * 1024 * 1024) { toast('Arquivo muito grande.'); return; }
+  toast('Enviando…');
+  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+  const path = `${currentUser.id}/${bucket === 'banners' ? 'banner' : 'avatar'}-${Date.now()}.${ext}`;
+  const { error } = await sb.storage.from(bucket).upload(path, file, { upsert: true, contentType: file.type });
+  if (error) { toast('Falha no upload: ' + error.message); return; }
+  const { data: pub } = sb.storage.from(bucket).getPublicUrl(path);
+  const url = pub.publicUrl;
+  const field = bucket === 'banners' ? 'p_banner_url' : 'p_avatar_url';
+  await sb.rpc('update_my_profile', { [field]: url });
+  toast('Atualizado ✓');
+  renderProfile();
+}
+
+function openProfileEditor() {
+  if (!profileState) return;
+  const { row } = profileState;
+  const s = row.socials || {};
+  const pop = $('#pop'), back = $('#popBackdrop');
+  pop.innerHTML = '';
+  const head = el('div', 'pop-head');
+  head.appendChild(el('h2', 'h2', 'Editar perfil'));
+  const close = el('button', 'pop-close', ICON.close);
+  close.setAttribute('aria-label', 'Fechar');
+  close.onclick = closePop;
+  head.appendChild(close);
+  pop.appendChild(head);
+
+  const form = el('form', 'edit-form');
+  form.innerHTML = `
+    <div><label>Nome</label><input name="name" maxlength="80" value="${esc(row.name || '')}"></div>
+    <div><label>Bio (até 400 caracteres)</label><textarea name="bio" maxlength="400">${esc(row.bio || '')}</textarea></div>
+    <div><label>País / cidade</label><input name="country" maxlength="60" value="${esc(row.country || '')}" placeholder="Ex: São Paulo, Brasil"></div>
+    <div><label>Instagram (@usuario)</label><input name="instagram" value="${esc(s.instagram || '')}" placeholder="cinefan"></div>
+    <div><label>Twitter/X (@usuario)</label><input name="twitter" value="${esc(s.twitter || '')}" placeholder="cinefan"></div>
+    <div><label>YouTube (canal ou @)</label><input name="youtube" value="${esc(s.youtube || '')}" placeholder="@cinefan"></div>
+    <div><label>Letterboxd (@usuario)</label><input name="letterboxd" value="${esc(s.letterboxd || '')}" placeholder="cinefan"></div>
+    <div><label>TikTok (@usuario)</label><input name="tiktok" value="${esc(s.tiktok || '')}" placeholder="cinefan"></div>
+    <div>
+      <label>Gêneros favoritos</label>
+      <div class="chip-picker" id="pfGenres"></div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:var(--md)">
+      <button type="button" class="btn btn-ghost" id="pfCancel">Cancelar</button>
+      <button type="submit" class="btn">Salvar</button>
+    </div>
+  `;
+  pop.appendChild(form);
+
+  // Gêneros
+  const GENRES = [
+    [28, 'Ação'], [12, 'Aventura'], [16, 'Animação'], [35, 'Comédia'],
+    [80, 'Crime'], [18, 'Drama'], [10751, 'Família'], [14, 'Fantasia'],
+    [27, 'Terror'], [10402, 'Musical'], [9648, 'Mistério'], [10749, 'Romance'],
+    [878, 'Ficção científica'], [53, 'Suspense'], [10752, 'Guerra'], [37, 'Faroeste'],
+    [99, 'Documentário'],
+  ];
+  const selected = new Set(row.preferred_genres || []);
+  const chipWrap = $('#pfGenres');
+  GENRES.forEach(([id, l]) => {
+    const c = el('button', 'chip' + (selected.has(id) ? ' on' : ''), l);
+    c.type = 'button';
+    c.onclick = () => { if (selected.has(id)) selected.delete(id); else selected.add(id); c.classList.toggle('on'); };
+    chipWrap.appendChild(c);
+  });
+
+  $('#pfCancel').onclick = closePop;
+  form.onsubmit = async (e) => {
+    e.preventDefault();
+    const f = e.target;
+    const socials = {};
+    ['instagram', 'twitter', 'youtube', 'letterboxd', 'tiktok'].forEach(k => {
+      const v = f[k].value.trim();
+      if (v) socials[k] = v;
+    });
+    const btn = f.querySelector('button[type=submit]');
+    btn.disabled = true; btn.textContent = 'Salvando…';
+    const { error } = await sb.rpc('update_my_profile', {
+      p_name: f.name.value.trim() || null,
+      p_bio: f.bio.value,
+      p_country: f.country.value.trim(),
+      p_socials: socials,
+      p_preferred_genres: [...selected],
+    });
+    btn.disabled = false; btn.textContent = 'Salvar';
+    if (error) { toast('Não foi possível salvar: ' + error.message); return; }
+    toast('Perfil salvo ✓');
+    closePop();
+    renderProfile();
+  };
+
+  back.classList.add('open');
+  pop.classList.add('open');
+  back.onclick = closePop;
+}
+
 /* ─────────────── screens/MyPayments ───────────────
    Histórico da própria conta (RLS: cada um só vê o seu) + recibo imprimível. */
 async function openMyPayments() {
@@ -2174,6 +2511,7 @@ const TABS = [
   { k: 'explore', l: 'Explorar', i: ICON.grid },
   { k: 'search',  l: 'Buscar',   i: ICON.search },
   { k: 'list',    l: 'Lista',    i: ICON.book },
+  { k: 'profile', l: 'Perfil',   i: ICON.user },
 ];
 let current = 'home';
 
@@ -2198,6 +2536,7 @@ function go(k) {
   if (k === 'explore') renderExplore();
   if (k === 'search') renderSearch();
   if (k === 'list') renderList();
+  if (k === 'profile') renderProfile();
 }
 
 /* ─────────────── boot ─────────────── */
@@ -2391,14 +2730,40 @@ function openFriendPop(p) {
   pop.innerHTML = '';
   const head = el('div', 'pop-head');
   const tt = el('div');
-  tt.appendChild(el('h2', 'h2', `🎬 O que ${esc(p.name || 'seu amigo')} já viu`));
-  tt.appendChild(el('p', 'caption t-sec', 'Perfil compartilhado via CINE Premium.'));
+  tt.style.cssText = 'display:flex;align-items:center;gap:12px;flex-wrap:wrap';
+  const av = el('div', 'profile-avatar');
+  av.style.cssText = `width:56px;height:56px;border-width:2px;font-size:20px;${p.avatar_url ? `background-image:url('${esc(p.avatar_url)}')` : ''}`;
+  if (!p.avatar_url) av.textContent = (p.name || '?').split(/\s+/).map(s => s[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
+  tt.appendChild(av);
+  const nameCol = el('div');
+  const h2 = el('h2', 'h2', esc(p.name || 'Seu amigo'));
+  h2.style.margin = '0';
+  nameCol.appendChild(h2);
+  const meta = el('p', 'caption t-sec', `Nível ${p.level || 1} · ${(p.stats?.watched_count || 0)} assistidos · ${(p.stats?.favorites_count || 0)} favoritos`);
+  meta.style.margin = '2px 0 0';
+  nameCol.appendChild(meta);
+  if (p.bio) { const bio = el('p', 'caption t-ter', esc(p.bio)); bio.style.margin = '4px 0 0'; nameCol.appendChild(bio); }
+  tt.appendChild(nameCol);
   head.appendChild(tt);
   const close = el('button', 'pop-close', ICON.close);
   close.setAttribute('aria-label', 'Fechar');
   close.onclick = closePop;
   head.appendChild(close);
   pop.appendChild(head);
+
+  if ((p.badges || []).length) {
+    const bh = el('div', 'pop-head'); bh.style.marginBottom = '8px';
+    bh.appendChild(el('span', 'overline t-ter', 'Conquistas'));
+    pop.appendChild(bh);
+    const strip = el('div');
+    strip.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;padding:0 var(--xl) var(--md)';
+    p.badges.forEach(b => {
+      const chip = el('span', '', `${b.icon} ${esc(b.name)}`);
+      chip.style.cssText = 'display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;background:var(--surface2);border:1px solid var(--border);font-size:12px;font-weight:600';
+      strip.appendChild(chip);
+    });
+    pop.appendChild(strip);
+  }
 
   const section = (label, items, progressOf) => {
     if (!items.length) return;
