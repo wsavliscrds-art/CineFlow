@@ -2745,10 +2745,22 @@ function openFriendPop(p) {
   if (p.bio) { const bio = el('p', 'caption t-ter', esc(p.bio)); bio.style.margin = '4px 0 0'; nameCol.appendChild(bio); }
   tt.appendChild(nameCol);
   head.appendChild(tt);
+  const actions = el('div');
+  actions.style.cssText = 'display:flex;gap:6px;align-items:center';
+  // Denunciar perfil — só faz sentido se não é o próprio usuário
+  if (p.id && currentUser && p.id !== currentUser.id) {
+    const rep = el('button', 'pop-close');
+    rep.setAttribute('aria-label', 'Denunciar perfil');
+    rep.title = 'Denunciar perfil';
+    rep.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V4l16 0-4 5 4 5H4"/></svg>';
+    rep.onclick = () => openReportPop('profile', p.id, p.id, p.name);
+    actions.appendChild(rep);
+  }
   const close = el('button', 'pop-close', ICON.close);
   close.setAttribute('aria-label', 'Fechar');
   close.onclick = closePop;
-  head.appendChild(close);
+  actions.appendChild(close);
+  head.appendChild(actions);
   pop.appendChild(head);
 
   if ((p.badges || []).length) {
@@ -2798,6 +2810,73 @@ function openFriendPop(p) {
   });
   section('Assistidos', [...seen.values()], t => progress.get(t.id));
   section('Favoritos', (p.favorites || []).map(f => f.title).filter(Boolean));
+
+  back.classList.add('open');
+  pop.classList.add('open');
+  back.onclick = closePop;
+}
+
+/* ─────────────── moderação: denunciar conteúdo ───────────────
+   Popup universal para reportar post/comentário/perfil. O servidor faz
+   rate limit (5/dia), veta auto-denúncia e evita duplicatas. */
+const REPORT_REASONS = [
+  ['spam', 'Spam ou propaganda'],
+  ['harassment', 'Assédio / bullying'],
+  ['nsfw', 'Conteúdo adulto ou impróprio'],
+  ['hate', 'Discurso de ódio'],
+  ['impersonation', 'Se passa por outra pessoa'],
+  ['copyright', 'Uso indevido de conteúdo'],
+  ['other', 'Outro'],
+];
+function openReportPop(kind, targetId, ownerId, ownerName) {
+  const pop = $('#pop'), back = $('#popBackdrop');
+  pop.innerHTML = '';
+  const head = el('div', 'pop-head');
+  const tt = el('div');
+  tt.appendChild(el('h2', 'h2', `Denunciar ${kind === 'profile' ? 'perfil' : kind === 'post' ? 'publicação' : 'comentário'}`));
+  if (ownerName) tt.appendChild(el('p', 'caption t-sec', `de ${esc(ownerName)}`));
+  head.appendChild(tt);
+  const close = el('button', 'pop-close', ICON.close);
+  close.setAttribute('aria-label', 'Fechar');
+  close.onclick = closePop;
+  head.appendChild(close);
+  pop.appendChild(head);
+
+  const form = el('form', 'edit-form');
+  form.innerHTML = `
+    <div>
+      <label>Motivo</label>
+      <select name="reason" required>${REPORT_REASONS.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select>
+    </div>
+    <div><label>Detalhes (opcional)</label><textarea name="note" maxlength="400" placeholder="Descreva o que aconteceu…"></textarea></div>
+    <p class="caption t-ter" style="margin:0">A moderação recebe a denúncia em segundos. Denúncias falsas repetidas podem silenciar sua conta.</p>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:var(--md)">
+      <button type="button" class="btn btn-ghost" id="rCancel">Cancelar</button>
+      <button type="submit" class="btn">Enviar denúncia</button>
+    </div>
+  `;
+  pop.appendChild(form);
+  $('#rCancel').onclick = closePop;
+  form.onsubmit = async (e) => {
+    e.preventDefault();
+    const btn = form.querySelector('button[type=submit]');
+    btn.disabled = true; btn.textContent = 'Enviando…';
+    const { error } = await sb.rpc('report_content', {
+      p_kind: kind, p_target_id: String(targetId), p_reason: form.reason.value,
+      p_note: form.note.value.trim() || null, p_owner: ownerId || null,
+    });
+    btn.disabled = false; btn.textContent = 'Enviar denúncia';
+    if (error) {
+      const m = error.message || '';
+      if (/já denunciou/.test(m)) toast('Você já denunciou este item.');
+      else if (/limite/.test(m)) toast('Limite de denúncias do dia atingido.');
+      else if (/próprio/.test(m)) toast('Você não pode denunciar o próprio conteúdo.');
+      else toast('Não foi possível enviar a denúncia.');
+      return;
+    }
+    toast('Denúncia enviada. Obrigado por avisar 🙏');
+    closePop();
+  };
 
   back.classList.add('open');
   pop.classList.add('open');

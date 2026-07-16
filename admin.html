@@ -290,6 +290,52 @@
     </div>
   </section>
 
+  <!-- ═══ MODERAÇÃO ═══ -->
+  <section id="modSec">
+    <h1 style="margin-bottom:var(--lg)">Moderação</h1>
+    <div class="tiles" id="modTiles"></div>
+  </section>
+
+  <section class="grid2">
+    <div class="card"><h2>Denúncias por dia (30 dias)</h2><div id="modChart"></div></div>
+    <div class="card">
+      <h2>Palavras banidas</h2>
+      <div class="toolbar" style="margin-bottom:var(--md)">
+        <input id="wWord" placeholder="palavra" style="min-width:140px" />
+        <select id="wSev" class="btn btn-ghost btn-sm" style="height:38px">
+          <option value="1">Leve (1)</option>
+          <option value="2">Média (2)</option>
+          <option value="3" selected>Grave (3)</option>
+        </select>
+        <button class="btn btn-primary btn-sm" id="wAdd">Adicionar</button>
+      </div>
+      <div class="tbl-wrap"><table id="wTable"></table></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="toolbar" style="margin-bottom:var(--md)">
+      <h2 style="margin:0">Fila de denúncias</h2>
+      <select id="rStatus" class="btn btn-ghost btn-sm" style="height:38px">
+        <option value="open" selected>Abertas</option>
+        <option value="reviewing">Em revisão</option>
+        <option value="resolved">Resolvidas</option>
+        <option value="dismissed">Dispensadas</option>
+        <option value="all">Todas</option>
+      </select>
+      <button class="btn btn-ghost btn-sm" id="rRefresh">Atualizar</button>
+    </div>
+    <div class="tbl-wrap"><table id="rTable"></table></div>
+  </section>
+
+  <section class="card">
+    <div class="toolbar" style="margin-bottom:var(--md)">
+      <h2 style="margin:0">Histórico de moderação</h2>
+      <button class="btn btn-ghost btn-sm" id="mhCsv">Exportar CSV</button>
+    </div>
+    <div class="tbl-wrap"><table id="mhTable"></table></div>
+  </section>
+
   <section class="card no-print" id="mfaSec">
     <h2>Segurança da sua conta</h2>
     <div id="mfaStatus" class="muted" style="margin-bottom:var(--md)"></div>
@@ -398,6 +444,7 @@ async function refreshAll() {
   renderTiles(); renderCharts(); renderUsers(); renderSearches(); renderAudit();
   if (fin) renderFinance();
   refreshPayments(); refreshCoupons();
+  refreshMod();
   if (!refreshAll.cfgLoaded) { refreshAll.cfgLoaded = true; loadConfig(); }
 }
 
@@ -687,6 +734,131 @@ $('#cfgSave').onclick = async () => {
   btn.textContent = 'Salvar configurações'; btn.disabled = false;
   alert('Configurações salvas.');
 };
+
+/* ─── moderação ─── */
+let modDash = null, modReports = [], modWords = [], modHistory = [];
+const REASON_LBL = {
+  spam: 'Spam', harassment: 'Assédio', nsfw: 'Conteúdo adulto', copyright: 'Direitos autorais',
+  impersonation: 'Impersonação', hate: 'Discurso de ódio', other: 'Outro',
+};
+async function refreshMod() {
+  const [d, r, w, h] = await Promise.all([
+    sb.rpc('admin_moderation_dashboard'),
+    sb.rpc('admin_report_list', { p_status: $('#rStatus').value, p_limit: 100 }),
+    sb.from('banned_words').select('*').order('severity', { ascending: false }).order('word'),
+    sb.rpc('admin_moderation_history', { p_limit: 100 }),
+  ]);
+  modDash = d.data; modReports = r.data || []; modWords = w.data || []; modHistory = h.data || [];
+  renderModTiles(); renderModChart(); renderReports(); renderBannedWords(); renderModHistory();
+}
+function renderModTiles() {
+  const d = modDash || {};
+  $('#modTiles').innerHTML =
+    tile(d.open || 0, 'denúncias abertas', true) +
+    tile(d.reviewing || 0, 'em revisão') +
+    tile(d.resolved_today || 0, 'resolvidas hoje') +
+    tile(d.dismissed_today || 0, 'dispensadas hoje') +
+    tile(d.muted_users || 0, 'silenciados agora') +
+    tile(d.banned_users || 0, 'banidos');
+}
+function renderModChart() {
+  const dayFmt = d => new Date(d + 'T12:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+  $('#modChart').innerHTML = barChart((modDash?.reports_30d || []).map(g => [dayFmt(g.day), g.n]), {});
+}
+function renderReports() {
+  if (!modReports.length) {
+    $('#rTable').innerHTML = '<tr><td class="muted" style="padding:12px">Nenhuma denúncia neste filtro.</td></tr>';
+    return;
+  }
+  $('#rTable').innerHTML = `<tr><th>#</th><th>Alvo</th><th>Motivo</th><th>Nota</th><th>Denunciante</th><th>Dono do alvo</th><th>Recorrência</th><th>Status</th><th>Quando</th><th>Ações</th></tr>` +
+    modReports.map(r => `
+      <tr>
+        <td>${r.id}</td>
+        <td><span class="tag">${r.target_kind}</span><br/><code style="font-size:11px">${esc(r.target_id).slice(0,24)}</code></td>
+        <td>${esc(REASON_LBL[r.reason] || r.reason)}</td>
+        <td class="muted" style="max-width:200px">${esc(r.note || '')}</td>
+        <td>${esc(r.reporter_name || '—')}</td>
+        <td>${esc(r.owner_name || '—')}${r.owner_strikes ? ` <span class="tag blocked">${r.owner_strikes} strikes</span>` : ''}</td>
+        <td>${r.same_target_count > 1 ? `<b>${r.same_target_count}</b> denúncias` : '1'}</td>
+        <td><span class="tag ${r.status==='open'?'':(r.status==='resolved'?'ok':'blocked')}">${r.status}</span></td>
+        <td>${fmtD(r.created_at)}</td>
+        <td>
+          <button class="btn btn-ghost btn-sm" data-rmute="${r.id}" data-user="${r.target_owner || ''}">Silenciar</button>
+          <button class="btn btn-ghost btn-sm btn-danger" data-rban="${r.id}" data-user="${r.target_owner || ''}">Banir</button>
+          <button class="btn btn-ghost btn-sm" data-rdis="${r.id}">Dispensar</button>
+        </td>
+      </tr>`).join('');
+  $('#rTable').querySelectorAll('[data-rmute]').forEach(b => b.onclick = () => modActionMute(Number(b.dataset.rmute), b.dataset.user));
+  $('#rTable').querySelectorAll('[data-rban]').forEach(b => b.onclick = () => modActionBan(Number(b.dataset.rban), b.dataset.user));
+  $('#rTable').querySelectorAll('[data-rdis]').forEach(b => b.onclick = () => modActionDismiss(Number(b.dataset.rdis)));
+}
+async function modActionMute(id, user) {
+  if (!user) return alert('Sem dono do alvo — não dá para silenciar.');
+  const min = Number(prompt('Silenciar por quantos minutos? (60 = 1h, 1440 = 1 dia, 10080 = 1 semana)', '60'));
+  if (!min || min <= 0) return;
+  const reason = prompt('Motivo (opcional):', '') || null;
+  const { error } = await sb.rpc('admin_mute_user', { p_user: user, p_minutes: min, p_reason: reason, p_report_id: id });
+  if (error) return alert('Erro: ' + error.message);
+  refreshMod();
+}
+async function modActionBan(id, user) {
+  if (!user) return alert('Sem dono do alvo — não dá para banir.');
+  if (!confirm('Banir permanentemente este usuário? O proxy TMDB e o app negam o acesso na hora.')) return;
+  const reason = prompt('Motivo (opcional):', '') || null;
+  const { error } = await sb.rpc('admin_ban_user', { p_user: user, p_reason: reason, p_report_id: id });
+  if (error) return alert('Erro: ' + error.message);
+  refreshMod(); refreshAll();
+}
+async function modActionDismiss(id) {
+  const note = prompt('Nota (opcional):', 'sem violação') || null;
+  const { error } = await sb.rpc('admin_report_close', { p_id: id, p_status: 'dismissed', p_note: note });
+  if (error) return alert('Erro: ' + error.message);
+  refreshMod();
+}
+function renderBannedWords() {
+  const sevLbl = s => ({ 1: 'leve', 2: 'média', 3: 'grave' }[s] || s);
+  $('#wTable').innerHTML = `<tr><th>Palavra</th><th>Severidade</th><th>Quando</th><th></th></tr>` +
+    (modWords.length ? modWords.map(w => `
+      <tr>
+        <td><code>${esc(w.word)}</code></td>
+        <td>${sevLbl(w.severity)}</td>
+        <td>${fmtD(w.added_at)}</td>
+        <td><button class="btn btn-ghost btn-sm btn-danger" data-wdel="${esc(w.word)}">Remover</button></td>
+      </tr>`).join('') : '<tr><td colspan="4" class="muted">Nenhuma palavra ainda.</td></tr>');
+  $('#wTable').querySelectorAll('[data-wdel]').forEach(b => b.onclick = async () => {
+    if (!confirm('Remover a palavra "' + b.dataset.wdel + '" da lista?')) return;
+    await sb.rpc('admin_word_remove', { p_word: b.dataset.wdel });
+    refreshMod();
+  });
+}
+$('#wAdd').onclick = async () => {
+  const word = $('#wWord').value.trim();
+  if (!word) return;
+  const { error } = await sb.rpc('admin_word_add', { p_word: word, p_severity: Number($('#wSev').value) });
+  if (error) return alert(error.message);
+  $('#wWord').value = ''; refreshMod();
+};
+$('#rRefresh').onclick = refreshMod;
+$('#rStatus').onchange = refreshMod;
+
+const MOD_ACTION_LBL = {
+  warn: 'aviso', mute: 'silenciamento', ban: 'banimento', unban: 'desbaniu', unmute: 'desilenciou',
+  delete: 'apagou', hide: 'ocultou', restore: 'restaurou', dismiss: 'dispensou', strike: 'strike',
+};
+function renderModHistory() {
+  $('#mhTable').innerHTML = `<tr><th>#</th><th>Moderador</th><th>Ação</th><th>Alvo</th><th>Motivo</th><th>Duração</th><th>Quando</th></tr>` +
+    (modHistory.length ? modHistory.map(h => `
+      <tr>
+        <td>${h.id}</td>
+        <td>${esc(h.moderator_name || '—')}</td>
+        <td><span class="tag">${esc(MOD_ACTION_LBL[h.action] || h.action)}</span></td>
+        <td>${esc(h.target_name || h.target_id)}</td>
+        <td class="muted" style="max-width:220px">${esc(h.reason || '')}</td>
+        <td>${h.duration_minutes ? h.duration_minutes + ' min' : '—'}</td>
+        <td>${fmtD(h.created_at)}</td>
+      </tr>`).join('') : '<tr><td colspan="7" class="muted">Sem ações ainda.</td></tr>');
+}
+$('#mhCsv').onclick = () => csv(modHistory, [['Moderador','moderator_name'],['Ação','action'],['Alvo (tipo)','target_kind'],['Alvo (dono)','target_name'],['Motivo','reason'],['Duração (min)','duration_minutes'],['Quando','created_at']], 'cine-moderacao.csv');
 
 /* ─── MFA: cadastro do autenticador ─── */
 async function renderMfaSection() {
