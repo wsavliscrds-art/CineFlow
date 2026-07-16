@@ -2569,6 +2569,8 @@ function authMessage(error) {
   if (m.includes('already registered'))        return 'Este email já tem uma conta. Use "Entrar".';
   if (m.includes('at least 6'))                return 'A senha precisa de pelo menos 6 caracteres.';
   if (m.includes('valid email') || m.includes('is invalid')) return 'Digite um email válido.';
+  if (m.includes('email rate limit') || m.includes('email_send_rate'))
+    return 'O servidor de email está no limite temporário. Aguarde 1 hora e tente novamente, ou peça acesso ao suporte.';
   if (m.includes('rate limit') || m.includes('after'))
     return 'Muitas tentativas. Aguarde um instante e tente de novo.';
   if (m.includes('fetch'))                     return 'Sem conexão. Verifique sua internet.';
