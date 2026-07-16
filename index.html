@@ -698,6 +698,80 @@
   .edit-form input:focus, .edit-form textarea:focus, .edit-form select:focus { border-color: var(--accent); }
   .chip-picker { display: flex; flex-wrap: wrap; gap: var(--sm); margin-top: 6px; }
   .chip-picker .chip { cursor: pointer; }
+
+  /* ─── screens/Community ─── */
+  .comm-shell { display: grid; grid-template-columns: 1fr; gap: var(--xl); padding: 0 var(--px); }
+  @media (min-width: 900px) { .comm-shell { grid-template-columns: minmax(0,1fr) 260px; } }
+  .comm-side { display: flex; flex-direction: column; gap: var(--xl); }
+  @media (min-width: 900px) { .comm-side { position: sticky; top: calc(72px + var(--md)); align-self: start; } }
+
+  .comm-strip {
+    display: flex; gap: var(--sm); overflow-x: auto; scrollbar-width: none;
+    padding: 0 var(--px) var(--sm); margin: 0 calc(-1 * var(--px));
+  }
+  .comm-strip::-webkit-scrollbar { display: none; }
+  .comm-strip .cchip {
+    flex: 0 0 auto; padding: 8px 14px; border-radius: 999px;
+    background: var(--surface2); border: 1px solid var(--border); color: var(--text-primary);
+    font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap;
+  }
+  .comm-strip .cchip.on { background: var(--accent-soft); border-color: var(--accent); }
+  .comm-strip .cchip .cn { color: var(--text-tertiary); font-weight: 600; margin-left: 6px; font-size: 11px; }
+
+  .composer {
+    background: var(--surface2); border: 1px solid var(--border); border-radius: var(--r-lg);
+    padding: var(--md); display: grid; gap: var(--sm);
+  }
+  .composer textarea {
+    width: 100%; min-height: 60px; resize: vertical; padding: 8px 0;
+    background: transparent; border: 0; color: var(--text-primary); font: inherit; outline: none;
+  }
+  .composer .row { display: flex; align-items: center; gap: var(--sm); justify-content: space-between; flex-wrap: wrap; }
+  .composer .row select {
+    height: 34px; padding: 0 var(--sm); background: var(--surface3);
+    border: 1px solid var(--border); border-radius: var(--r-md); color: var(--text-primary); font: inherit;
+  }
+  .composer .row button.post { background: var(--accent); color: #000; padding: 8px 16px; border-radius: var(--r-md); font-weight: 800; }
+  .composer .row button.post:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .post-card {
+    background: var(--surface1); border: 1px solid var(--border); border-radius: var(--r-lg);
+    padding: var(--md); display: grid; gap: var(--sm); margin-bottom: var(--md);
+  }
+  .post-head { display: flex; align-items: center; gap: var(--sm); }
+  .post-head .av {
+    width: 40px; height: 40px; border-radius: 50%; background: var(--surface3);
+    background-size: cover; background-position: center;
+    display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px; color: var(--text-secondary);
+    flex: 0 0 auto;
+  }
+  .post-head .who { flex: 1; min-width: 0; }
+  .post-head .who .n { font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .post-head .who .n .lvl { font-size: 10px; font-weight: 800; letter-spacing: 1px; color: var(--accent); border: 1px solid rgba(56,189,248,0.4); border-radius: 999px; padding: 1px 6px; }
+  .post-head .who .m { font-size: 11px; color: var(--text-tertiary); }
+  .post-head .menu { color: var(--text-tertiary); padding: 4px 8px; border-radius: var(--r-md); }
+  .post-body { font-size: 15px; line-height: 1.55; white-space: pre-wrap; word-break: break-word; }
+  .post-body a { color: var(--accent); }
+  .post-body .tag { color: var(--accent); font-weight: 600; }
+  .post-actions { display: flex; align-items: center; gap: var(--md); font-size: 13px; color: var(--text-secondary); }
+  .post-actions button { display: inline-flex; align-items: center; gap: 4px; color: inherit; padding: 4px 8px; border-radius: var(--r-md); }
+  .post-actions button:hover { background: var(--surface2); }
+  .post-actions button.liked { color: var(--danger); }
+
+  .comment-list { display: flex; flex-direction: column; gap: var(--md); }
+  .comment { display: flex; gap: 10px; }
+  .comment .av { width: 32px; height: 32px; border-radius: 50%; background: var(--surface3); background-size: cover; background-position: center; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: var(--text-secondary); flex: 0 0 auto; }
+  .comment .bubble { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--r-md); padding: 8px 12px; flex: 1; min-width: 0; }
+  .comment .bubble .who { font-size: 12px; font-weight: 700; margin-bottom: 2px; }
+  .comment .bubble .txt { font-size: 14px; line-height: 1.45; white-space: pre-wrap; word-break: break-word; }
+  .comment .meta { font-size: 11px; color: var(--text-tertiary); margin-top: 4px; display: flex; gap: 10px; }
+  .comment .meta button { color: inherit; }
+  .comment .meta button.liked { color: var(--danger); }
+
+  .trend-list { display: flex; flex-direction: column; gap: 4px; }
+  .trend-list a { padding: 8px 10px; border-radius: var(--r-md); color: var(--text-primary); background: var(--surface2); border: 1px solid var(--border); display: flex; justify-content: space-between; font-size: 13px; text-decoration: none; }
+  .trend-list a:hover { background: var(--surface3); }
+  .trend-list a .n { color: var(--text-tertiary); font-size: 11px; }
 </style>
 
 <!-- ═══════════════════════ MARKUP ═══════════════════════ -->
@@ -789,6 +863,8 @@
   <section class="view" id="view-list" style="padding-top:calc(72px + env(safe-area-inset-top))"></section>
 
   <section class="view" id="view-profile" style="padding-top:calc(72px + env(safe-area-inset-top))"></section>
+
+  <section class="view" id="view-community" style="padding-top:calc(72px + env(safe-area-inset-top))"></section>
 </main>
 
 <nav class="tabbar" id="tabbar"></nav>
@@ -1200,6 +1276,12 @@ const ICON = {
   warn: '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 8v5M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg>',
   user: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>',
   cam: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19V8a2 2 0 0 0-2-2h-3.2l-1.8-2.8A1 1 0 0 0 15.15 3H8.85a1 1 0 0 0-.85.45L6.2 6H3a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h18a2 2 0 0 0 2-2z"/><circle cx="12" cy="13" r="4"/></svg>',
+  people: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.4"/><path d="M2 21c0-3.4 3.1-5 7-5s7 1.6 7 5"/><circle cx="17" cy="7" r="2.6"/><path d="M22 20c0-2.6-1.9-4-4.5-4"/></svg>',
+  heart: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 1 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg>',
+  heartF: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 1 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg>',
+  chat: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
+  flag:  '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V4l16 0-4 5 4 5H4"/></svg>',
+  trash: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M6 6l1 14a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-14"/></svg>',
 };
 
 /* ─────────────── components/Card ─────────────── */
@@ -2115,6 +2197,382 @@ function openProfileEditor() {
   back.onclick = closePop;
 }
 
+/* ─────────────── screens/Community ───────────────
+   Feed principal (comunidades que sigo + globais), lista de comunidades
+   em pílula, composer com anti-spam do servidor, hashtags em alta,
+   post detail popup com comentários. */
+let communities = [];
+let currentCommunity = null;  // null = feed principal, número = id da comunidade
+let feedRows = [];
+let trending = [];
+
+async function loadCommunities() {
+  if (!sb) return;
+  const { data } = await sb.rpc('community_list');
+  communities = data || [];
+}
+
+async function loadFeed() {
+  if (!sb) return;
+  if (currentCommunity) {
+    const { data } = await sb.rpc('feed_community', { p_community_id: currentCommunity });
+    feedRows = data || [];
+  } else {
+    const { data } = await sb.rpc('feed_home', { p_limit: 40 });
+    feedRows = data || [];
+  }
+}
+
+async function loadTrending() {
+  if (!sb) return;
+  const { data } = await sb.rpc('hashtag_trending', { p_limit: 10 });
+  trending = data || [];
+}
+
+async function renderCommunity() {
+  const v = $('#view-community');
+  v.innerHTML = `<div style="padding:0 var(--px) var(--md)"><h1 class="h1">Comunidade</h1></div><div class="spin" style="margin:24px auto"></div>`;
+  await Promise.all([loadCommunities(), loadFeed(), loadTrending()]);
+
+  v.innerHTML = `
+    <div style="padding:0 var(--px) var(--md)"><h1 class="h1">Comunidade</h1></div>
+    <div class="comm-strip" id="cStrip"></div>
+    <div class="comm-shell">
+      <div>
+        <div id="cComposer"></div>
+        <div id="cFeed" style="margin-top:var(--lg)"></div>
+      </div>
+      <aside class="comm-side">
+        <div>
+          <div class="overline t-ter" style="margin-bottom:8px">Comunidades</div>
+          <div class="trend-list" id="cCommList"></div>
+        </div>
+        <div>
+          <div class="overline t-ter" style="margin-bottom:8px">Hashtags em alta</div>
+          <div class="trend-list" id="cTrend"></div>
+        </div>
+      </aside>
+    </div>
+    <div style="padding:var(--xxl)"></div>
+  `;
+
+  renderCommunityStrip();
+  renderComposer();
+  renderFeed();
+  renderCommList();
+  renderTrending();
+}
+
+function renderCommunityStrip() {
+  const s = $('#cStrip');
+  s.innerHTML = '';
+  const home = el('button', 'cchip' + (currentCommunity ? '' : ' on'), 'Feed');
+  home.onclick = async () => { currentCommunity = null; await loadFeed(); renderCommunityStrip(); renderFeed(); renderComposer(); };
+  s.appendChild(home);
+  communities.forEach(c => {
+    const b = el('button', 'cchip' + (currentCommunity === c.id ? ' on' : ''));
+    b.innerHTML = `${esc(c.name)}<span class="cn">${c.member_count}</span>`;
+    b.onclick = async () => { currentCommunity = c.id; await loadFeed(); renderCommunityStrip(); renderFeed(); renderComposer(); };
+    s.appendChild(b);
+  });
+}
+
+function renderComposer() {
+  const c = $('#cComposer');
+  if (!currentUser) { c.innerHTML = ''; return; }
+  const targetName = currentCommunity ? communities.find(x => x.id === currentCommunity)?.name : 'geral';
+  c.innerHTML = `
+    <div class="composer">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+        <div class="caption t-ter">Postar em <b style="color:var(--text-primary)">${esc(targetName || 'geral')}</b></div>
+        ${currentCommunity ? (() => {
+          const isMember = communities.find(x => x.id === currentCommunity)?.i_am_member;
+          return `<button class="link-btn" id="cJoin">${isMember ? 'Sair' : 'Entrar'}</button>`;
+        })() : ''}
+      </div>
+      <textarea id="cText" maxlength="2000" placeholder="Compartilhe uma opinião, uma indicação, use #hashtags…"></textarea>
+      <div class="row">
+        <span class="caption t-ter"><span id="cLen">0</span>/2000</span>
+        <button class="post" id="cSend" disabled>Publicar</button>
+      </div>
+    </div>
+  `;
+  const ta = $('#cText'), btn = $('#cSend'), len = $('#cLen');
+  ta.oninput = () => { len.textContent = ta.value.length; btn.disabled = !ta.value.trim(); };
+  btn.onclick = async () => {
+    const body = ta.value.trim();
+    if (!body) return;
+    btn.disabled = true; btn.textContent = 'Publicando…';
+    const { error } = await sb.rpc('post_create', {
+      p_body: body,
+      p_community_id: currentCommunity,
+    });
+    btn.disabled = false; btn.textContent = 'Publicar';
+    if (error) {
+      const m = error.message || '';
+      if (/silenciada/.test(m)) toast('Sua conta está silenciada.');
+      else if (/não permitidas/.test(m)) toast('Texto contém palavras não permitidas.');
+      else toast('Não foi possível publicar.');
+      return;
+    }
+    ta.value = ''; len.textContent = '0';
+    await loadFeed();
+    renderFeed();
+    toast('Publicado 🎬');
+  };
+  const j = $('#cJoin');
+  if (j) j.onclick = async () => {
+    const isMember = communities.find(x => x.id === currentCommunity)?.i_am_member;
+    await sb.rpc(isMember ? 'community_leave' : 'community_join', { p_id: currentCommunity });
+    await loadCommunities(); renderCommunityStrip(); renderComposer();
+  };
+}
+
+function highlightText(t) {
+  return esc(t)
+    .replace(/#([a-zA-Z0-9_À-ÿ]{2,30})/g, '<span class="tag">#$1</span>')
+    .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
+}
+
+function timeAgo(ts) {
+  const s = Math.max(1, Math.floor((Date.now() - new Date(ts).getTime()) / 1000));
+  if (s < 60) return 'agora';
+  const m = Math.floor(s / 60); if (m < 60) return m + 'min';
+  const h = Math.floor(m / 60); if (h < 24) return h + 'h';
+  const d = Math.floor(h / 24); if (d < 7) return d + 'd';
+  return new Date(ts).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+}
+
+function renderFeed() {
+  const f = $('#cFeed');
+  if (!feedRows.length) {
+    f.innerHTML = `<div class="notice" style="text-align:center">Ainda sem publicações por aqui. Que tal ser a primeira? ✨</div>`;
+    return;
+  }
+  f.innerHTML = '';
+  feedRows.forEach(p => f.appendChild(postCardEl(p)));
+}
+
+function postCardEl(p) {
+  const card = el('article', 'post-card');
+  card.dataset.postId = p.id;
+  const initials = (p.author_name || '?').split(/\s+/).map(s => s[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
+  const av = p.author_avatar
+    ? `<div class="av" style="background-image:url('${esc(p.author_avatar)}')"></div>`
+    : `<div class="av">${esc(initials)}</div>`;
+  const commLbl = p.community_name ? ` · em <b style="color:var(--text-primary)">${esc(p.community_name)}</b>` : '';
+  card.innerHTML = `
+    <div class="post-head">
+      ${av}
+      <div class="who">
+        <div class="n">${esc(p.author_name || 'Anônimo')}${p.author_level ? `<span class="lvl">NÍVEL ${p.author_level}</span>` : ''}</div>
+        <div class="m">${timeAgo(p.created_at)}${commLbl}</div>
+      </div>
+      <button class="menu" aria-label="Menu">⋯</button>
+    </div>
+    <div class="post-body">${highlightText(p.body)}</div>
+    <div class="post-actions">
+      <button data-like class="${p.i_liked ? 'liked' : ''}">${p.i_liked ? ICON.heartF : ICON.heart}<span>${p.likes_count || 0}</span></button>
+      <button data-open>${ICON.chat}<span>${p.comments_count || 0}</span></button>
+    </div>
+  `;
+  card.querySelector('[data-like]').onclick = async (e) => {
+    e.stopPropagation();
+    const btn = e.currentTarget;
+    const { data: liked, error } = await sb.rpc('post_like_toggle', { p_post_id: p.id });
+    if (error) return toast('Não foi possível curtir.');
+    p.i_liked = liked;
+    p.likes_count += liked ? 1 : -1;
+    btn.classList.toggle('liked', liked);
+    btn.innerHTML = `${liked ? ICON.heartF : ICON.heart}<span>${p.likes_count}</span>`;
+  };
+  card.querySelector('[data-open]').onclick = () => openPostDetail(p);
+  card.onclick = (e) => { if (e.target.closest('.post-actions,.menu,a')) return; openPostDetail(p); };
+  card.querySelector('.menu').onclick = (e) => {
+    e.stopPropagation();
+    openPostMenu(p);
+  };
+  return card;
+}
+
+function openPostMenu(p) {
+  const options = [];
+  if (currentUser && p.author_id === currentUser.id) {
+    options.push({ label: 'Apagar publicação', fn: () => deletePost(p) });
+  } else {
+    options.push({ label: 'Denunciar publicação', fn: () => openReportPop('post', p.id, p.author_id, p.author_name) });
+  }
+  // popup simples via prompt fallback: melhor com um menu, mas simples primeiro
+  const pick = options.length === 1 ? confirm(options[0].label + '?') && options[0].fn() : null;
+}
+
+async function deletePost(p) {
+  if (!confirm('Apagar esta publicação?')) return;
+  const { error } = await sb.from('posts').delete().eq('id', p.id);
+  if (error) return toast('Não deu.');
+  toast('Apagada.');
+  feedRows = feedRows.filter(x => x.id !== p.id);
+  renderFeed();
+}
+
+function renderCommList() {
+  const wrap = $('#cCommList');
+  wrap.innerHTML = '';
+  communities.slice(0, 8).forEach(c => {
+    const a = el('a');
+    a.href = '#';
+    a.innerHTML = `<span>${esc(c.name)}${c.i_am_member ? ' ✓' : ''}</span><span class="n">${c.member_count}</span>`;
+    a.onclick = async (e) => { e.preventDefault(); currentCommunity = c.id; await loadFeed(); renderCommunityStrip(); renderFeed(); renderComposer(); window.scrollTo(0, 0); };
+    wrap.appendChild(a);
+  });
+}
+
+function renderTrending() {
+  const wrap = $('#cTrend');
+  wrap.innerHTML = '';
+  if (!trending.length) { wrap.innerHTML = '<span class="caption t-ter">Sem hashtags em alta ainda.</span>'; return; }
+  trending.forEach(t => {
+    const a = el('a');
+    a.href = '#';
+    a.innerHTML = `<span>#${esc(t.tag)}</span><span class="n">${t.uses}</span>`;
+    a.onclick = (e) => { e.preventDefault(); toast('Filtro por hashtag em breve.'); };
+    wrap.appendChild(a);
+  });
+}
+
+async function openPostDetail(p) {
+  const pop = $('#pop'), back = $('#popBackdrop');
+  pop.innerHTML = '';
+  const head = el('div', 'pop-head');
+  const tt = el('div');
+  const initials = (p.author_name || '?').split(/\s+/).map(s => s[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
+  const av = p.author_avatar
+    ? `<div class="av" style="background-image:url('${esc(p.author_avatar)}');width:36px;height:36px;border-radius:50%;background-size:cover"></div>`
+    : `<div class="av" style="width:36px;height:36px;border-radius:50%;background:var(--surface3);display:flex;align-items:center;justify-content:center;font-weight:800">${esc(initials)}</div>`;
+  tt.innerHTML = `<div style="display:flex;gap:10px;align-items:center">${av}<div><div style="font-weight:700">${esc(p.author_name || 'Anônimo')}</div><div class="caption t-ter">${timeAgo(p.created_at)}${p.community_name ? ' · ' + esc(p.community_name) : ''}</div></div></div>`;
+  head.appendChild(tt);
+  const close = el('button', 'pop-close', ICON.close);
+  close.setAttribute('aria-label', 'Fechar');
+  close.onclick = closePop;
+  head.appendChild(close);
+  pop.appendChild(head);
+
+  const body = el('div');
+  body.style.cssText = 'padding:0 var(--xl);font-size:15px;line-height:1.55;white-space:pre-wrap;word-break:break-word';
+  body.innerHTML = highlightText(p.body);
+  pop.appendChild(body);
+
+  const actions = el('div');
+  actions.style.cssText = 'display:flex;gap:12px;padding:12px var(--xl);border-bottom:1px solid var(--border);margin:12px 0';
+  const likeBtn = el('button', 'link-btn');
+  likeBtn.innerHTML = `${p.i_liked ? ICON.heartF : ICON.heart} <span>${p.likes_count || 0}</span> curtidas`;
+  if (p.i_liked) likeBtn.style.color = 'var(--danger)';
+  likeBtn.onclick = async () => {
+    const { data: liked } = await sb.rpc('post_like_toggle', { p_post_id: p.id });
+    p.i_liked = liked; p.likes_count += liked ? 1 : -1;
+    likeBtn.innerHTML = `${liked ? ICON.heartF : ICON.heart} <span>${p.likes_count}</span> curtidas`;
+    likeBtn.style.color = liked ? 'var(--danger)' : '';
+  };
+  actions.appendChild(likeBtn);
+  if (currentUser && p.author_id !== currentUser.id) {
+    const rep = el('button', 'link-btn');
+    rep.innerHTML = `${ICON.flag} Denunciar`;
+    rep.onclick = () => openReportPop('post', p.id, p.author_id, p.author_name);
+    actions.appendChild(rep);
+  }
+  if (currentUser && p.author_id === currentUser.id) {
+    const del = el('button', 'link-btn');
+    del.style.color = 'var(--danger)';
+    del.innerHTML = `${ICON.trash} Apagar`;
+    del.onclick = async () => { await deletePost(p); closePop(); };
+    actions.appendChild(del);
+  }
+  pop.appendChild(actions);
+
+  const cWrap = el('div');
+  cWrap.style.cssText = 'padding:0 var(--xl) var(--lg);display:flex;flex-direction:column;gap:var(--md)';
+  cWrap.innerHTML = '<div class="spin" style="margin:12px auto"></div>';
+  pop.appendChild(cWrap);
+
+  // Composer de comentário
+  if (currentUser) {
+    const cc = el('div', 'composer');
+    cc.style.cssText = 'margin:0 var(--xl) var(--lg)';
+    cc.innerHTML = `<textarea id="ccText" maxlength="1000" placeholder="Adicione um comentário…"></textarea><div class="row"><span class="caption t-ter"><span id="ccLen">0</span>/1000</span><button class="post" id="ccSend" disabled>Comentar</button></div>`;
+    pop.appendChild(cc);
+    const ta = $('#ccText'), btn = $('#ccSend'), len = $('#ccLen');
+    ta.oninput = () => { len.textContent = ta.value.length; btn.disabled = !ta.value.trim(); };
+    btn.onclick = async () => {
+      btn.disabled = true; btn.textContent = 'Enviando…';
+      const { error } = await sb.rpc('comment_create', { p_post_id: p.id, p_body: ta.value.trim() });
+      btn.disabled = false; btn.textContent = 'Comentar';
+      if (error) {
+        const m = error.message || '';
+        if (/silenciada/.test(m)) toast('Sua conta está silenciada.');
+        else if (/não permitidas/.test(m)) toast('Texto contém palavras não permitidas.');
+        else toast('Não foi possível comentar.');
+        return;
+      }
+      ta.value = ''; len.textContent = '0'; p.comments_count = (p.comments_count || 0) + 1;
+      await refreshComments(p.id, cWrap);
+    };
+  }
+
+  back.classList.add('open');
+  pop.classList.add('open');
+  back.onclick = closePop;
+
+  refreshComments(p.id, cWrap);
+}
+
+async function refreshComments(postId, container) {
+  const { data } = await sb.rpc('post_comments', { p_post: postId });
+  container.innerHTML = '';
+  if (!(data || []).length) {
+    container.innerHTML = '<span class="caption t-ter">Sem comentários ainda. Comece a conversa!</span>';
+    return;
+  }
+  data.forEach(c => container.appendChild(commentEl(c)));
+}
+
+function commentEl(c) {
+  const item = el('div', 'comment');
+  const initials = (c.author_name || '?').split(/\s+/).map(s => s[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
+  const av = c.author_avatar
+    ? `<div class="av" style="background-image:url('${esc(c.author_avatar)}')"></div>`
+    : `<div class="av">${esc(initials)}</div>`;
+  item.innerHTML = `
+    ${av}
+    <div style="flex:1;min-width:0">
+      <div class="bubble">
+        <div class="who">${esc(c.author_name || 'Anônimo')} <span class="caption t-ter">${timeAgo(c.created_at)}</span></div>
+        <div class="txt">${highlightText(c.body)}</div>
+      </div>
+      <div class="meta">
+        <button data-clike class="${c.i_liked ? 'liked' : ''}">${c.i_liked ? '♥' : '♡'} ${c.likes_count || 0}</button>
+        ${currentUser && c.author_id !== currentUser.id ? '<button data-crep>Denunciar</button>' : ''}
+        ${currentUser && c.author_id === currentUser.id ? '<button data-cdel>Apagar</button>' : ''}
+      </div>
+    </div>
+  `;
+  item.querySelector('[data-clike]').onclick = async (e) => {
+    const btn = e.currentTarget;
+    const { data: liked } = await sb.rpc('comment_like_toggle', { p_comment_id: c.id });
+    c.i_liked = liked; c.likes_count += liked ? 1 : -1;
+    btn.textContent = `${liked ? '♥' : '♡'} ${c.likes_count}`;
+    btn.classList.toggle('liked', liked);
+  };
+  const rep = item.querySelector('[data-crep]');
+  if (rep) rep.onclick = () => openReportPop('comment', c.id, c.author_id, c.author_name);
+  const del = item.querySelector('[data-cdel]');
+  if (del) del.onclick = async () => {
+    if (!confirm('Apagar comentário?')) return;
+    await sb.from('comments').delete().eq('id', c.id);
+    item.remove();
+  };
+  return item;
+}
+
 /* ─────────────── screens/MyPayments ───────────────
    Histórico da própria conta (RLS: cada um só vê o seu) + recibo imprimível. */
 async function openMyPayments() {
@@ -2507,11 +2965,12 @@ function epEl(e, show, seasonNum) {
 
 /* ─────────────── navegação ─────────────── */
 const TABS = [
-  { k: 'home',    l: 'Início',   i: ICON.home },
-  { k: 'explore', l: 'Explorar', i: ICON.grid },
-  { k: 'search',  l: 'Buscar',   i: ICON.search },
-  { k: 'list',    l: 'Lista',    i: ICON.book },
-  { k: 'profile', l: 'Perfil',   i: ICON.user },
+  { k: 'home',      l: 'Início',   i: ICON.home },
+  { k: 'explore',   l: 'Explorar', i: ICON.grid },
+  { k: 'community', l: 'Comunidade', i: ICON.people },
+  { k: 'search',    l: 'Buscar',   i: ICON.search },
+  { k: 'list',      l: 'Lista',    i: ICON.book },
+  { k: 'profile',   l: 'Perfil',   i: ICON.user },
 ];
 let current = 'home';
 
@@ -2537,6 +2996,7 @@ function go(k) {
   if (k === 'search') renderSearch();
   if (k === 'list') renderList();
   if (k === 'profile') renderProfile();
+  if (k === 'community') renderCommunity();
 }
 
 /* ─────────────── boot ─────────────── */
