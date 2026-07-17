@@ -2235,7 +2235,10 @@ async function renderCommunity() {
   await Promise.all([loadCommunities(), loadFeed(), loadTrending()]);
 
   v.innerHTML = `
-    <div style="padding:0 var(--px) var(--md)"><h1 class="h1">Comunidade</h1></div>
+    <div style="padding:0 var(--px) var(--md);display:flex;align-items:center;justify-content:space-between;gap:8px">
+      <h1 class="h1" style="margin:0">Comunidade</h1>
+      <button class="btn btn-ghost" id="cNewBtn">+ Nova comunidade</button>
+    </div>
     <div class="comm-strip" id="cStrip"></div>
     <div class="comm-shell">
       <div>
@@ -2261,6 +2264,80 @@ async function renderCommunity() {
   renderFeed();
   renderCommList();
   renderTrending();
+  $('#cNewBtn').onclick = openCreateCommunityPop;
+}
+
+function openCreateCommunityPop() {
+  if (!isPremium()) {
+    toast('Criar comunidades é um recurso Premium.');
+    setTimeout(() => openUpgradePop('criar comunidades'), 400);
+    return;
+  }
+  const pop = $('#pop'), back = $('#popBackdrop');
+  pop.innerHTML = '';
+  const head = el('div', 'pop-head');
+  const tt = el('div');
+  tt.appendChild(el('h2', 'h2', 'Criar comunidade'));
+  tt.appendChild(el('p', 'caption t-sec', 'Você vira o dono e o primeiro membro.'));
+  head.appendChild(tt);
+  const close = el('button', 'pop-close', ICON.close);
+  close.setAttribute('aria-label', 'Fechar');
+  close.onclick = closePop;
+  head.appendChild(close);
+  pop.appendChild(head);
+
+  const form = el('form', 'edit-form');
+  form.innerHTML = `
+    <div><label>Nome</label><input name="name" maxlength="60" required placeholder="Cinema Mudo"></div>
+    <div><label>Slug (URL)</label><input name="slug" maxlength="40" required placeholder="cinema-mudo" pattern="[a-z0-9-]{3,40}"></div>
+    <div><label>Categoria (opcional)</label><input name="category" maxlength="30" placeholder="Clássicos"></div>
+    <div><label>Descrição (até 400)</label><textarea name="description" maxlength="400" placeholder="Do que a comunidade fala?"></textarea></div>
+    <div><label>URL da capa (opcional)</label><input name="cover_url" type="url" placeholder="https://…"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:var(--md)">
+      <button type="button" class="btn btn-ghost" id="ccCancel">Cancelar</button>
+      <button type="submit" class="btn">Criar</button>
+    </div>
+  `;
+  pop.appendChild(form);
+  // slug auto a partir do nome
+  form.name.addEventListener('input', () => {
+    if (form.slug.dataset.touched) return;
+    form.slug.value = form.name.value.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40);
+  });
+  form.slug.addEventListener('input', () => { form.slug.dataset.touched = '1'; });
+  $('#ccCancel').onclick = closePop;
+  form.onsubmit = async (e) => {
+    e.preventDefault();
+    const btn = form.querySelector('button[type=submit]');
+    btn.disabled = true; btn.textContent = 'Criando…';
+    const { data, error } = await sb.rpc('community_create', {
+      p_slug: form.slug.value.trim().toLowerCase(),
+      p_name: form.name.value.trim(),
+      p_description: form.description.value.trim() || null,
+      p_category: form.category.value.trim() || null,
+      p_cover_url: form.cover_url.value.trim() || null,
+    });
+    btn.disabled = false; btn.textContent = 'Criar';
+    if (error) {
+      const m = error.message || '';
+      if (/Premium/.test(m)) toast('Só usuários Premium podem criar comunidades.');
+      else if (/silenciada/.test(m)) toast('Sua conta está silenciada.');
+      else if (/slug/.test(m)) toast('Slug inválido — use minúsculas, números e hífen.');
+      else if (/já existe/.test(m)) toast('Já existe uma comunidade com esse slug.');
+      else if (/não permitidas/.test(m)) toast('Texto contém palavras não permitidas.');
+      else toast('Não foi possível criar: ' + m);
+      return;
+    }
+    toast('Comunidade criada! 🎉');
+    closePop();
+    currentCommunity = data;
+    await loadCommunities(); await loadFeed();
+    renderCommunityStrip(); renderComposer(); renderFeed(); renderCommList();
+  };
+
+  back.classList.add('open');
+  pop.classList.add('open');
+  back.onclick = closePop;
 }
 
 function renderCommunityStrip() {

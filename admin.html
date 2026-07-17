@@ -290,6 +290,33 @@
     </div>
   </section>
 
+  <!-- ═══ COMUNIDADES ═══ -->
+  <section id="commSec">
+    <h1 style="margin-bottom:var(--lg)">Comunidades</h1>
+  </section>
+
+  <section class="card">
+    <div class="toolbar" style="margin-bottom:var(--md)">
+      <h2 style="margin:0">Nova comunidade</h2>
+    </div>
+    <div class="toolbar" style="flex-wrap:wrap;gap:var(--sm)">
+      <input id="cmSlug" placeholder="slug (ex: cinema-mudo)" style="min-width:160px" />
+      <input id="cmName" placeholder="Nome" style="min-width:160px" />
+      <input id="cmCat" placeholder="Categoria (opcional)" style="min-width:140px" />
+      <input id="cmCover" placeholder="URL da capa (opcional)" style="min-width:180px" />
+      <input id="cmDesc" placeholder="Descrição" style="min-width:260px;flex:1" />
+      <button class="btn btn-primary btn-sm" id="cmAdd">Criar</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="toolbar" style="margin-bottom:var(--md)">
+      <h2 style="margin:0">Todas as comunidades</h2>
+      <button class="btn btn-ghost btn-sm" id="cmRefresh">Atualizar</button>
+    </div>
+    <div class="tbl-wrap"><table id="cmTable"></table></div>
+  </section>
+
   <!-- ═══ MODERAÇÃO ═══ -->
   <section id="modSec">
     <h1 style="margin-bottom:var(--lg)">Moderação</h1>
@@ -444,7 +471,7 @@ async function refreshAll() {
   renderTiles(); renderCharts(); renderUsers(); renderSearches(); renderAudit();
   if (fin) renderFinance();
   refreshPayments(); refreshCoupons();
-  refreshMod();
+  refreshComm(); refreshMod();
   if (!refreshAll.cfgLoaded) { refreshAll.cfgLoaded = true; loadConfig(); }
 }
 
@@ -734,6 +761,65 @@ $('#cfgSave').onclick = async () => {
   btn.textContent = 'Salvar configurações'; btn.disabled = false;
   alert('Configurações salvas.');
 };
+
+/* ─── comunidades ─── */
+let commList = [];
+async function refreshComm() {
+  const { data, error } = await sb.rpc('admin_community_list');
+  if (error) { console.error(error); return; }
+  commList = data || [];
+  renderCommTable();
+}
+function renderCommTable() {
+  $('#cmTable').innerHTML = `<tr><th>#</th><th>Slug</th><th>Nome</th><th>Categoria</th><th>Membros</th><th>Posts</th><th>Criador</th><th>Quando</th><th></th></tr>` +
+    (commList.length ? commList.map(c => `
+      <tr>
+        <td>${c.id}</td>
+        <td><code>${esc(c.slug)}</code></td>
+        <td>${esc(c.name)}<br/><span class="muted" style="font-size:11px">${esc(c.description || '')}</span></td>
+        <td>${esc(c.category || '—')}</td>
+        <td>${c.member_count}</td>
+        <td>${c.post_count}</td>
+        <td>${esc(c.owner_name || 'Sistema')}</td>
+        <td>${fmtD(c.created_at)}</td>
+        <td>
+          <button class="btn btn-ghost btn-sm" data-cedit="${c.id}">Editar</button>
+          <button class="btn btn-ghost btn-sm btn-danger" data-cdel="${c.id}">Apagar</button>
+        </td>
+      </tr>`).join('') : '<tr><td colspan="9" class="muted">Nenhuma comunidade ainda.</td></tr>');
+  $('#cmTable').querySelectorAll('[data-cedit]').forEach(b => b.onclick = () => editComm(Number(b.dataset.cedit)));
+  $('#cmTable').querySelectorAll('[data-cdel]').forEach(b => b.onclick = () => deleteComm(Number(b.dataset.cdel)));
+}
+async function editComm(id) {
+  const c = commList.find(x => x.id === id); if (!c) return;
+  const name = prompt('Nome:', c.name); if (name === null) return;
+  const description = prompt('Descrição:', c.description || ''); if (description === null) return;
+  const category = prompt('Categoria:', c.category || ''); if (category === null) return;
+  const cover_url = prompt('URL da capa:', c.cover_url || ''); if (cover_url === null) return;
+  const { error } = await sb.rpc('admin_community_update', { p_id: id, p_name: name, p_description: description, p_category: category, p_cover_url: cover_url });
+  if (error) return alert('Erro: ' + error.message);
+  refreshComm();
+}
+async function deleteComm(id) {
+  const c = commList.find(x => x.id === id); if (!c) return;
+  if (!confirm(`Apagar a comunidade "${c.name}"? Todos os posts e comentários dela também vão.`)) return;
+  const { error } = await sb.rpc('admin_community_delete', { p_id: id });
+  if (error) return alert('Erro: ' + error.message);
+  refreshComm();
+}
+$('#cmAdd').onclick = async () => {
+  const { error } = await sb.rpc('community_create', {
+    p_slug: $('#cmSlug').value.trim().toLowerCase(),
+    p_name: $('#cmName').value.trim(),
+    p_description: $('#cmDesc').value.trim() || null,
+    p_category: $('#cmCat').value.trim() || null,
+    p_cover_url: $('#cmCover').value.trim() || null,
+  });
+  if (error) return alert(error.message);
+  ['cmSlug','cmName','cmDesc','cmCat','cmCover'].forEach(id => $('#'+id).value = '');
+  refreshComm();
+};
+$('#cmRefresh').onclick = refreshComm;
 
 /* ─── moderação ─── */
 let modDash = null, modReports = [], modWords = [], modHistory = [];
